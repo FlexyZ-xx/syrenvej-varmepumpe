@@ -5,7 +5,7 @@ Simple web interface to control a relay connected to an ESP32/Arduino via the cl
 ## Quick Overview
 
 - **Web Interface**: https://syrenvej-varmepumpe.vercel.app
-- **Password**: `vestervovvov`
+- **Password**: Check `public/auth.js` for current password
 - **Features**: Manual ON/OFF toggle + Schedule control
 - **Hardware**: ESP32 + Soldered I2C Relay Board
 
@@ -81,12 +81,15 @@ GPIO22 (SCL) →    SCL
 
 ## API Configuration
 
-**API Key**: `a3bad1660cef3fd1bb3e9573711dd36f3fa8c5a1dd61d1d0e3cb991e330b1fa4`
+The API key is stored in:
+- **Vercel**: Environment variable `API_KEY`
+- **Arduino**: Variable `API_KEY` in the `.ino` file
+- **Web Interface**: Variable `API_KEY` in `public/script.js`
 
-Set in Vercel:
+To update the API key:
 ```bash
 vercel env add API_KEY
-# Paste the API key above
+# Generate new key: openssl rand -hex 32
 ```
 
 ## Project Structure
