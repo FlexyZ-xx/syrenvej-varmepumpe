@@ -1,56 +1,38 @@
-// Simple password authentication for web interface
-const AUTH_STORAGE_KEY = 'syrenvej_auth';
-const AUTH_EXPIRY_HOURS = 24;
-const CORRECT_PASSWORD = 'syrenvej2025'; // Change this to your password
+// Password Authentication
+const CORRECT_PASSWORD = 'syrenvej2025';
+const AUTH_KEY = 'syrenvej_auth';
+const EXPIRY_HOURS = 24;
 
-// Immediately hide page content
-document.documentElement.style.visibility = 'hidden';
-
-function checkAuth() {
-    const authData = localStorage.getItem(AUTH_STORAGE_KEY);
-    
-    if (!authData) {
-        return false;
-    }
-    
+// Check if authenticated
+function isAuthenticated() {
     try {
-        const { timestamp } = JSON.parse(authData);
-        const now = Date.now();
-        const expiryTime = AUTH_EXPIRY_HOURS * 60 * 60 * 1000;
+        const data = localStorage.getItem(AUTH_KEY);
+        if (!data) return false;
         
-        if (now - timestamp > expiryTime) {
-            localStorage.removeItem(AUTH_STORAGE_KEY);
+        const { timestamp } = JSON.parse(data);
+        const hoursPassed = (Date.now() - timestamp) / (1000 * 60 * 60);
+        
+        if (hoursPassed > EXPIRY_HOURS) {
+            localStorage.removeItem(AUTH_KEY);
             return false;
         }
-        
         return true;
     } catch {
         return false;
     }
 }
 
-function saveAuth() {
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({
-        timestamp: Date.now()
-    }));
-}
-
-function logout() {
-    localStorage.removeItem(AUTH_STORAGE_KEY);
-    location.reload();
-}
-
-function createLoginPage() {
-    // Create overlay
-    const overlay = document.createElement('div');
-    overlay.id = 'auth-overlay';
-    overlay.innerHTML = `
+// Show login immediately if not authenticated
+if (!isAuthenticated()) {
+    // Create and inject login HTML immediately
+    const loginHTML = `
         <style>
-            #auth-overlay {
-                position: fixed;
-                top: 0;
-                left: 0;
-                right: 0;
+            body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+            #login-screen { 
+                position: fixed; 
+                top: 0; 
+                left: 0; 
+                right: 0; 
                 bottom: 0;
                 background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                 display: flex;
@@ -58,54 +40,47 @@ function createLoginPage() {
                 justify-content: center;
                 z-index: 999999;
             }
-            
-            #auth-box {
+            #login-box {
                 background: white;
                 padding: 40px;
                 border-radius: 16px;
                 box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-                max-width: 400px;
                 width: 90%;
+                max-width: 400px;
+            }
+            #login-box h2 {
+                margin: 0 0 10px 0;
+                color: #2d3748;
+                font-size: 28px;
                 text-align: center;
             }
-            
-            #auth-box h2 {
-                color: #2d3748;
-                margin-bottom: 10px;
-                font-size: 28px;
-                font-weight: 600;
-            }
-            
-            #auth-box p {
+            #login-box p {
+                margin: 0 0 30px 0;
                 color: #718096;
-                margin-bottom: 30px;
                 font-size: 14px;
+                text-align: center;
             }
-            
-            #password-input {
+            #pwd-input {
                 width: 100%;
                 padding: 14px;
                 border: 2px solid #e2e8f0;
                 border-radius: 8px;
                 font-size: 16px;
-                margin-bottom: 12px;
                 box-sizing: border-box;
-                font-family: inherit;
+                margin-bottom: 12px;
             }
-            
-            #password-input:focus {
+            #pwd-input:focus {
                 outline: none;
                 border-color: #667eea;
             }
-            
-            #auth-error {
+            #error-msg {
                 color: #e53e3e;
                 font-size: 14px;
+                text-align: center;
                 margin-bottom: 12px;
                 min-height: 20px;
             }
-            
-            #login-btn {
+            #login-submit {
                 width: 100%;
                 padding: 14px;
                 background: #3182ce;
@@ -116,36 +91,25 @@ function createLoginPage() {
                 font-weight: 600;
                 cursor: pointer;
                 transition: all 0.2s;
-                font-family: inherit;
             }
-            
-            #login-btn:hover {
+            #login-submit:hover {
                 background: #2c5282;
-                transform: translateY(-2px);
+                transform: translateY(-1px);
             }
-            
-            #login-btn:active {
-                transform: translateY(0);
-            }
-            
-            #auth-info {
+            #session-info {
                 margin-top: 20px;
                 padding-top: 20px;
                 border-top: 1px solid #e2e8f0;
                 color: #718096;
                 font-size: 12px;
+                text-align: center;
             }
-            
             @keyframes shake {
                 0%, 100% { transform: translateX(0); }
                 25% { transform: translateX(-10px); }
-                50% { transform: translateX(10px); }
-                75% { transform: translateX(-10px); }
+                75% { transform: translateX(10px); }
             }
-            
-            .shake {
-                animation: shake 0.5s;
-            }
+            .shake { animation: shake 0.4s; }
             
             #logout-btn {
                 position: fixed;
@@ -162,77 +126,64 @@ function createLoginPage() {
                 z-index: 1000;
                 transition: all 0.2s;
                 box-shadow: 0 2px 8px rgba(252, 129, 129, 0.3);
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             }
-            
             #logout-btn:hover {
                 background: #e53e3e;
                 transform: translateY(-2px);
-                box-shadow: 0 4px 12px rgba(252, 129, 129, 0.4);
             }
         </style>
-        <div id="auth-box">
-            <h2>🔒 Syrenvej6</h2>
-            <p>Enter password to continue</p>
-            <form id="auth-form">
-                <input 
-                    type="password" 
-                    id="password-input" 
-                    placeholder="Password"
-                    autocomplete="current-password"
-                    required
-                />
-                <div id="auth-error"></div>
-                <button type="submit" id="login-btn">Login</button>
-            </form>
-            <div id="auth-info">
-                Session expires after ${AUTH_EXPIRY_HOURS} hours
+        <div id="login-screen">
+            <div id="login-box">
+                <h2>🔒 Syrenvej6</h2>
+                <p>Enter password to continue</p>
+                <form id="login-form" onsubmit="return false;">
+                    <input type="password" id="pwd-input" placeholder="Password" autocomplete="current-password" required>
+                    <div id="error-msg"></div>
+                    <button type="submit" id="login-submit">Login</button>
+                </form>
+                <div id="session-info">Session expires after ${EXPIRY_HOURS} hours</div>
             </div>
         </div>
     `;
     
-    document.body.insertBefore(overlay, document.body.firstChild);
+    document.write(loginHTML);
+    document.close();
     
-    // Focus password input
-    const passwordInput = document.getElementById('password-input');
-    setTimeout(() => passwordInput.focus(), 100);
-    
-    // Handle form submission
-    document.getElementById('auth-form').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const password = passwordInput.value;
-        const errorDiv = document.getElementById('auth-error');
-        const authBox = document.getElementById('auth-box');
+    // Setup login handler
+    setTimeout(() => {
+        const form = document.getElementById('login-form');
+        const input = document.getElementById('pwd-input');
+        const error = document.getElementById('error-msg');
+        const box = document.getElementById('login-box');
         
-        if (password === CORRECT_PASSWORD) {
-            saveAuth();
-            overlay.remove();
-            document.documentElement.style.visibility = 'visible';
-            addLogoutButton();
-        } else {
-            errorDiv.textContent = '❌ Incorrect password';
-            passwordInput.value = '';
-            passwordInput.focus();
-            authBox.classList.add('shake');
-            setTimeout(() => authBox.classList.remove('shake'), 500);
-        }
-    });
-}
-
-function addLogoutButton() {
-    const btn = document.createElement('button');
-    btn.id = 'logout-btn';
-    btn.textContent = '🚪 Logout';
-    btn.onclick = logout;
-    document.body.appendChild(btn);
-}
-
-// Check auth when page loads
-if (checkAuth()) {
-    // User is authenticated
-    document.documentElement.style.visibility = 'visible';
-    window.addEventListener('DOMContentLoaded', addLogoutButton);
+        input.focus();
+        
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            if (input.value === CORRECT_PASSWORD) {
+                localStorage.setItem(AUTH_KEY, JSON.stringify({ timestamp: Date.now() }));
+                location.reload();
+            } else {
+                error.textContent = '❌ Incorrect password';
+                input.value = '';
+                input.focus();
+                box.classList.add('shake');
+                setTimeout(() => box.classList.remove('shake'), 400);
+            }
+        });
+    }, 100);
+    
 } else {
-    // Show login page
-    window.addEventListener('DOMContentLoaded', createLoginPage);
+    // User is authenticated - add logout button when page loads
+    window.addEventListener('DOMContentLoaded', () => {
+        const btn = document.createElement('button');
+        btn.id = 'logout-btn';
+        btn.textContent = '🚪 Logout';
+        btn.onclick = () => {
+            localStorage.removeItem(AUTH_KEY);
+            location.reload();
+        };
+        document.body.appendChild(btn);
+    });
 }
