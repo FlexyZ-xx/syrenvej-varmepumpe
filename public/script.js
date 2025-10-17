@@ -63,6 +63,8 @@ function populateSelects() {
 
 let waitingForResponse = false;
 let expectedState = null;
+let waitingForSchedule = false;
+let expectedSchedule = null;
 
 function setupEventListeners() {
     // Manual toggle
@@ -102,6 +104,8 @@ function setupEventListeners() {
 
     // Save schedule
     document.getElementById('saveScheduleBtn').addEventListener('click', async () => {
+        if (waitingForSchedule) return;
+        
         const day = document.getElementById('daySelect').value;
         const month = document.getElementById('monthSelect').value;
         const year = document.getElementById('yearSelect').value;
@@ -118,14 +122,75 @@ function setupEventListeners() {
             minute: parseInt(minute),
             action: action
         };
+        
+        // Store expected schedule
+        expectedSchedule = {
+            day: parseInt(day),
+            month: parseInt(month),
+            year: parseInt(year),
+            hour: parseInt(hour),
+            minute: parseInt(minute),
+            action: action,
+            executed: false
+        };
+        
+        // Disable all schedule controls and show loading
+        setScheduleControlsState(false);
+        waitingForSchedule = true;
 
         await sendCommand(schedule);
+        
+        // Timeout after 30 seconds if Arduino doesn't respond
+        setTimeout(() => {
+            if (waitingForSchedule) {
+                setScheduleControlsState(true);
+                waitingForSchedule = false;
+                expectedSchedule = null;
+            }
+        }, 30000);
     });
 
     // Clear schedule
     document.getElementById('clearScheduleBtn').addEventListener('click', async () => {
+        if (waitingForSchedule) return;
+        
+        // Store expected state (no schedule)
+        expectedSchedule = null;
+        
+        // Disable all schedule controls and show loading
+        setScheduleControlsState(false);
+        waitingForSchedule = true;
+        
         await sendCommand({ type: 'clear_schedule' });
+        
+        // Timeout after 30 seconds if Arduino doesn't respond
+        setTimeout(() => {
+            if (waitingForSchedule) {
+                setScheduleControlsState(true);
+                waitingForSchedule = false;
+            }
+        }, 30000);
     });
+}
+
+function setScheduleControlsState(enabled) {
+    const controls = [
+        'daySelect', 'monthSelect', 'yearSelect', 
+        'hourSelect', 'minuteSelect', 'actionSelect',
+        'saveScheduleBtn', 'clearScheduleBtn'
+    ];
+    
+    controls.forEach(id => {
+        const el = document.getElementById(id);
+        el.disabled = !enabled;
+        el.style.opacity = enabled ? '1' : '0.5';
+    });
+    
+    // Show/hide loading animation
+    const loadingEl = document.getElementById('scheduleLoading');
+    if (loadingEl) {
+        loadingEl.style.display = enabled ? 'none' : 'flex';
+    }
 }
 
 async function sendCommand(command) {
@@ -149,12 +214,19 @@ async function sendCommand(command) {
         console.error('Error sending command:', error);
         showStatus('Failed to send command', 'error');
         
-        // On error, re-enable toggle
+        // On error, re-enable controls
         const toggle = document.getElementById('manualToggle');
         toggle.disabled = false;
         waitingForResponse = false;
         toggle.style.opacity = '1';
         toggle.style.cursor = 'pointer';
+        
+        // Re-enable schedule controls if schedule command failed
+        if (waitingForSchedule) {
+            setScheduleControlsState(true);
+            waitingForSchedule = false;
+            expectedSchedule = null;
+        }
     }
 }
 
@@ -189,11 +261,41 @@ async function loadCurrentState() {
             toggle.checked = arduinoState;
         }
 
-        // Update schedule display
+        // Update schedule display and check if Arduino confirmed
+        if (waitingForSchedule) {
+            if (schedulesMatch(data.schedule, expectedSchedule)) {
+                // Arduino confirmed! Re-enable controls
+                setScheduleControlsState(true);
+                waitingForSchedule = false;
+                expectedSchedule = null;
+            }
+            // If schedule doesn't match, keep waiting
+        }
+        
         updateScheduleDisplay(data.schedule);
     } catch (error) {
         console.error('Error loading state:', error);
     }
+}
+
+function schedulesMatch(actual, expected) {
+    // If both are null/empty (cleared schedule)
+    if ((!actual || !actual.year) && !expected) {
+        return true;
+    }
+    
+    // If one is null but not the other
+    if (!actual || !actual.year || !expected) {
+        return false;
+    }
+    
+    // Compare all schedule fields
+    return actual.day === expected.day &&
+           actual.month === expected.month &&
+           actual.year === expected.year &&
+           actual.hour === expected.hour &&
+           actual.minute === expected.minute &&
+           actual.action === expected.action;
 }
 
 function updateScheduleDisplay(schedule) {
