@@ -66,6 +66,7 @@ let expectedState = null;
 let waitingForSchedule = false;
 let expectedSchedule = null;
 let lastArduinoHeartbeat = null;
+let isShowingWaitingState = false;
 
 function setupEventListeners() {
     // Manual toggle - use click event for better control
@@ -215,6 +216,7 @@ function showWaitingState(message) {
     const statusSpinner = document.getElementById('statusSpinner');
     const statusText = document.getElementById('statusText');
     
+    isShowingWaitingState = true;
     statusBox.classList.add('waiting');
     statusDot.style.display = 'none';
     statusSpinner.style.display = 'block';
@@ -226,6 +228,7 @@ function hideWaitingState() {
     const statusDot = document.getElementById('statusDot');
     const statusSpinner = document.getElementById('statusSpinner');
     
+    isShowingWaitingState = false;
     statusBox.classList.remove('waiting');
     statusDot.style.display = 'block';
     statusSpinner.style.display = 'none';
@@ -390,6 +393,11 @@ function updateScheduleDisplay(schedule) {
 }
 
 function updateArduinoStatus(isConnected) {
+    // Don't update status while showing waiting state
+    if (isShowingWaitingState) {
+        return;
+    }
+    
     const statusDot = document.getElementById('statusDot');
     const statusText = document.getElementById('statusText');
     const lastSeenEl = document.getElementById('lastSeen');
