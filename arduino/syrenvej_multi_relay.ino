@@ -5,18 +5,16 @@
  * All state is stored locally in EEPROM.
  * 
  * Hardware:
- * - ESP8266 or ESP32
+ * - ESP32
  * - 4-channel relay module
  * 
  * Configuration:
  * - Update WIFI_SSID and WIFI_PASSWORD
- * - Update API_HOST with your Vercel deployment URL
- * - Update API_KEY with your generated key
+ * - All other settings are pre-configured for production
  */
 
-#include <ESP8266WiFi.h>  // For ESP8266. Use <WiFi.h> for ESP32
-#include <ESP8266HTTPClient.h>
-#include <WiFiClient.h>
+#include <WiFi.h>
+#include <HTTPClient.h>
 #include <EEPROM.h>
 #include <ArduinoJson.h>
 #include <time.h>
@@ -33,7 +31,7 @@ const char* API_KEY = "a3bad1660cef3fd1bb3e9573711dd36f3fa8c5a1dd61d1d0e3cb991e3
 
 // Hardware Configuration - Multiple Relays
 const int NUM_RELAYS = 4;
-const int RELAY_PINS[NUM_RELAYS] = {D1, D2, D5, D6};  // GPIO5, GPIO4, GPIO14, GPIO12
+const int RELAY_PINS[NUM_RELAYS] = {5, 18, 19, 21};  // GPIO5, GPIO18, GPIO19, GPIO21
 const char* RELAY_NAMES[NUM_RELAYS] = {
     "Heat Pump",
     "Circulation Pump",
@@ -69,7 +67,6 @@ Schedule schedules[NUM_RELAYS];  // One schedule per relay
 unsigned long lastPoll = 0;
 unsigned long lastStatusReport = 0;
 
-WiFiClient wifiClient;
 HTTPClient http;
 
 // NTP Configuration
@@ -168,7 +165,7 @@ void pollForCommands() {
     
     String url = String(API_HOST) + COMMAND_ENDPOINT;
     
-    http.begin(wifiClient, url);
+    http.begin(url);
     http.setTimeout(5000);
     http.addHeader("X-API-Key", API_KEY);
     
@@ -272,7 +269,7 @@ void reportStatus() {
     String jsonString;
     serializeJson(doc, jsonString);
     
-    http.begin(wifiClient, url);
+    http.begin(url);
     http.addHeader("Content-Type", "application/json");
     http.addHeader("X-API-Key", API_KEY);
     
