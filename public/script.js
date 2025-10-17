@@ -10,6 +10,11 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Poll for updates every 2 seconds
     setInterval(loadCurrentState, 2000);
+    
+    // Check connection status every second
+    setInterval(() => {
+        updateArduinoStatus(false);
+    }, 1000);
 });
 
 function populateSelects() {
@@ -446,13 +451,6 @@ function getTimeSince(timestamp) {
     const hours = Math.floor(minutes / 60);
     return `${hours} hour${hours > 1 ? 's' : ''} ago`;
 }
-
-// Check connection status periodically
-setInterval(() => {
-    if (lastArduinoHeartbeat) {
-        updateArduinoStatus(false);
-    }
-}, 1000);
 
 function showStatus(message, type) {
     const statusEl = document.getElementById('statusMessage');
