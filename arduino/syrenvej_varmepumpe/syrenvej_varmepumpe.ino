@@ -263,10 +263,12 @@ void checkSchedule() {
         setRelay(newState);
         saveRelayState();
         
-        currentSchedule.executed = true;
+        // Clear schedule after execution
+        currentSchedule.active = false;
+        currentSchedule.executed = false;
         saveSchedule();
         
-        Serial.println("Schedule executed and marked as complete");
+        Serial.println("Schedule executed and cleared");
     }
 }
 
