@@ -10,14 +10,23 @@ Your Arduino sketches are **pre-configured** for ESP32 and ready to use!
 
 ### Hardware
 - ✅ **ESP32 Dev Board** (any ESP32 with WiFi)
-- ✅ **Relay Module** (1 or 4 channel, 3.3V or 5V compatible)
+- ✅ **Soldered I2C Relay Board** (CH_Relay compatible, address 0x30)
 - ✅ **Micro USB Cable**
-- ✅ **Jumper Wires**
+- ✅ **Jumper Wires** (4 pieces for I2C connection)
+
+![Relay Board](images/relay-board.jpg)
+
+**Using the Soldered I2C Relay Board:**
+- Communicates via I2C (not direct GPIO)
+- Uses `Relay-SOLDERED.h` library
+- Address: 0x30
+- 5V relay with NO/COM/NC terminals
 
 ### Software
 - ✅ **Arduino IDE** (already installed)
 - ✅ **ESP32 Board Support** (install below)
 - ✅ **ArduinoJson Library** (install below)
+- ✅ **Relay-SOLDERED Library** (install below)
 
 ---
 
@@ -37,12 +46,23 @@ In Arduino IDE:
 5. Install **"ESP32 by Espressif Systems"**
 6. Click **Close**
 
-### 2. Install ArduinoJson Library
+### 2. Install Required Libraries
+
+**ArduinoJson Library:**
 
 1. **Sketch → Include Library → Manage Libraries**
 2. Search **"ArduinoJson"**
 3. Install **"ArduinoJson by Benoit Blanchon"** (version 6.x or 7.x)
 4. Click **Close**
+
+**Relay-SOLDERED Library:**
+
+1. **Sketch → Include Library → Manage Libraries**
+2. Search **"Relay SOLDERED"**
+3. Install **"Relay board-SOLDERED"** or **"CH_Relay"**
+4. Click **Close**
+
+**Note:** This library is specifically for the Soldered I2C Relay Board shown above.
 
 ### 3. Configure WiFi
 

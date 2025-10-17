@@ -20,6 +20,22 @@ Relay Module → Heat Pump
 - ✅ Secure HTTPS communication
 - ✅ Runs entirely on free tier hosting
 - ✅ Modern, responsive web UI
+- ✅ I2C relay control with Soldered board
+
+## 🔌 Hardware
+
+**Soldered I2C Relay Board**
+
+![Relay Board](images/relay-board.jpg)
+
+This project uses the Soldered I2C Relay Board:
+- **I2C Interface** (address 0x30)
+- **5V Relay** with NO/COM/NC terminals
+- **Optocoupler** isolation
+- **Compatible** with `Relay-SOLDERED.h` library
+- **Easy wiring** with just 4 wires (VCC, GND, SDA, SCL)
+
+See [WIRING.md](WIRING.md) for detailed connection diagrams.
 
 ## 🚀 Quick Start
 

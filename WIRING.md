@@ -1,12 +1,35 @@
 # Wiring Diagrams
 
+## Hardware Overview
+
+### Soldered I2C Relay Board
+
+This project uses the **Soldered I2C Relay Board** (CH_Relay library compatible).
+
+**Board Features:**
+- I2C interface (address: 0x30)
+- 5V relay with NO/COM/NC terminals
+- Onboard optocoupler for isolation
+- Blue LED indicator
+- Compact design
+
+![Soldered I2C Relay Board](images/relay-board.jpg)
+
+**Key Components Visible:**
+- Top: I2C interface pins (SDA, SCL, VCC, GND)
+- Middle: Control circuitry and optocoupler
+- Bottom: Blue SRD-05VDC-SL-C relay module
+- Bottom terminals: NO (Normally Open), COM (Common), NC (Normally Closed)
+
+---
+
 ## Single Relay Setup
 
 ### Components Needed
-- ESP8266 (NodeMCU v1.0) or ESP32
-- 5V Relay Module (with optocoupler)
+- **ESP32** (recommended) or ESP8266 (NodeMCU v1.0)
+- **Soldered I2C Relay Board** (shown above)
 - Micro USB cable (for power and programming)
-- Jumper wires (3-4 pieces)
+- Jumper wires (4 pieces: VCC, GND, SDA, SCL)
 
 ### Wiring Diagram - ESP8266 (NodeMCU)
 
