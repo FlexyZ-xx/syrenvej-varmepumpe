@@ -70,6 +70,7 @@ let waitingForSchedule = false;
 let expectedSchedule = null;
 let lastArduinoHeartbeat = null;
 let isShowingWaitingState = false;
+let lastConnectionState = false; // Track last known connection state
 let currentSchedule = null;
 
 function setupEventListeners() {
@@ -237,8 +238,8 @@ function hideWaitingState() {
     statusDot.style.display = 'block';
     statusSpinner.style.display = 'none';
     
-    // Restore normal status
-    updateArduinoStatus(false);
+    // Restore last known connection status (not force to false)
+    updateArduinoStatus(lastConnectionState);
 }
 
 async function sendCommand(command) {
@@ -410,6 +411,9 @@ function updateArduinoStatus(isConnected) {
     if (isShowingWaitingState) {
         return;
     }
+    
+    // Store the connection state for later restoration
+    lastConnectionState = isConnected;
     
     const statusDot = document.getElementById('statusDot');
     const statusText = document.getElementById('statusText');
