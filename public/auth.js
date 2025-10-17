@@ -1,5 +1,5 @@
 // Password Authentication
-const CORRECT_PASSWORD = 'syrenvej2025';
+const CORRECT_PASSWORD = 'vestervovvov';
 const AUTH_KEY = 'syrenvej_auth';
 const EXPIRY_HOURS = 24;
 

@@ -61,11 +61,31 @@ function populateSelects() {
     document.getElementById('minuteSelect').value = now.getMinutes().toString().padStart(2, '0');
 }
 
+let waitingForResponse = false;
+
 function setupEventListeners() {
     // Manual toggle
-    document.getElementById('manualToggle').addEventListener('change', async (e) => {
+    const toggle = document.getElementById('manualToggle');
+    toggle.addEventListener('change', async (e) => {
+        if (waitingForResponse) return;
+        
         const command = e.target.checked ? 'on' : 'off';
+        
+        // Disable toggle while waiting for Arduino
+        toggle.disabled = true;
+        waitingForResponse = true;
+        toggle.style.opacity = '0.5';
+        toggle.style.cursor = 'wait';
+        
         await sendCommand({ type: 'manual', action: command });
+        
+        // Re-enable after Arduino confirms (or timeout after 15 seconds)
+        setTimeout(() => {
+            toggle.disabled = false;
+            waitingForResponse = false;
+            toggle.style.opacity = '1';
+            toggle.style.cursor = 'pointer';
+        }, 15000);
     });
 
     // Save schedule
@@ -132,7 +152,18 @@ async function loadCurrentState() {
         
         // Update toggle (without triggering change event)
         const toggle = document.getElementById('manualToggle');
-        toggle.checked = data.relayState === 'on';
+        const oldState = toggle.checked;
+        const newState = data.relayState === 'on';
+        
+        toggle.checked = newState;
+        
+        // If Arduino confirmed the state change, re-enable toggle
+        if (waitingForResponse && oldState !== newState) {
+            toggle.disabled = false;
+            waitingForResponse = false;
+            toggle.style.opacity = '1';
+            toggle.style.cursor = 'pointer';
+        }
 
         // Update schedule display
         updateScheduleDisplay(data.schedule);

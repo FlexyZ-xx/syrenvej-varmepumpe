@@ -3,6 +3,7 @@ const API_BASE = window.location.origin + '/api';
 const API_KEY = 'a3bad1660cef3fd1bb3e9573711dd36f3fa8c5a1dd61d1d0e3cb991e330b1fa4';
 
 let relaysData = [];
+let waitingForResponse = {}; // Track which relays are waiting for response
 
 // Initialize the interface
 document.addEventListener('DOMContentLoaded', () => {
@@ -148,6 +149,17 @@ async function loadRelaysState() {
         const data = await response.json();
         
         if (data.relays) {
+            // Check if any waiting relays got their state confirmed
+            data.relays.forEach((relay, index) => {
+                if (waitingForResponse[index]) {
+                    const oldRelay = relaysData[index];
+                    // If state changed, Arduino confirmed it
+                    if (oldRelay && oldRelay.state !== relay.state) {
+                        delete waitingForResponse[index];
+                    }
+                }
+            });
+            
             relaysData = data.relays;
             renderRelayGrid();
             updateRelaySelector();
@@ -173,6 +185,8 @@ function renderRelayGrid() {
             scheduleInfo = `<div class="schedule-badge">📅 ${dateStr} ${timeStr} - ${s.action.toUpperCase()}</div>`;
         }
         
+        const isWaiting = waitingForResponse[index];
+        
         card.innerHTML = `
             <div class="relay-header">
                 <div class="relay-name">${relay.name}</div>
@@ -180,7 +194,11 @@ function renderRelayGrid() {
             </div>
             <div class="toggle-container">
                 <label class="switch mini-toggle">
-                    <input type="checkbox" ${relay.state === 'on' ? 'checked' : ''} data-relay-index="${index}">
+                    <input type="checkbox" 
+                           ${relay.state === 'on' ? 'checked' : ''} 
+                           ${isWaiting ? 'disabled' : ''}
+                           data-relay-index="${index}"
+                           style="${isWaiting ? 'opacity: 0.5; cursor: wait;' : ''}">
                     <span class="slider"></span>
                 </label>
             </div>
@@ -190,8 +208,26 @@ function renderRelayGrid() {
         // Add toggle event listener
         const toggle = card.querySelector('input[type="checkbox"]');
         toggle.addEventListener('change', async (e) => {
+            if (waitingForResponse[index]) return;
+            
             const command = e.target.checked ? 'on' : 'off';
+            
+            // Disable toggle while waiting
+            toggle.disabled = true;
+            toggle.style.opacity = '0.5';
+            toggle.style.cursor = 'wait';
+            waitingForResponse[index] = true;
+            
             await sendCommand({ type: 'manual', action: command, relayIndex: index });
+            
+            // Timeout after 15 seconds
+            setTimeout(() => {
+                toggle.disabled = false;
+                toggle.style.opacity = '1';
+                toggle.style.cursor = 'pointer';
+                delete waitingForResponse[index];
+                renderRelayGrid(); // Re-render to update UI
+            }, 15000);
         });
         
         grid.appendChild(card);
