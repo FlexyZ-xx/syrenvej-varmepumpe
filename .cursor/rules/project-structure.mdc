@@ -1,0 +1,35 @@
+---
+alwaysApply: true
+---
+
+# Syrenvej Varmepumpe Project Structure
+
+This is a Vercel-hosted IoT control system for an ESP32-based relay controller.
+
+## Architecture Overview
+
+### Frontend (Web Interface)
+- [public/index.html](mdc:public/index.html) - Main web interface
+- [public/script.js](mdc:public/script.js) - Frontend logic with optimistic UI updates
+- [public/styles.css](mdc:public/styles.css) - Responsive styling (mobile-first)
+- [public/auth.js](mdc:public/auth.js) - Client-side password authentication
+
+### Backend (Vercel Serverless)
+- [api/command.js](mdc:api/command.js) - Receives commands from web UI, stores state
+- [api/status.js](mdc:api/status.js) - Arduino reports status here, web UI polls here
+
+### Arduino/ESP32
+- [arduino/syrenvej_varmepumpe/syrenvej_varmepumpe.ino](mdc:arduino/syrenvej_varmepumpe/syrenvej_varmepumpe.ino) - ESP32 firmware with I2C relay control
+
+### Configuration
+- [vercel.json](mdc:vercel.json) - Vercel deployment configuration
+- [package.json](mdc:package.json) - Project metadata
+- [README.md](mdc:README.md) - Complete project documentation
+
+## Key Design Principles
+
+1. **Stateless Backend**: All state stored on Arduino EEPROM, not server
+2. **Polling Architecture**: Arduino polls for commands, web UI polls for status
+3. **Optimistic UI**: UI updates immediately, confirms with Arduino later
+4. **Mobile-First**: Compact, responsive design for mobile devices
+5. **Single Relay**: Simplified from multi-relay to single relay control

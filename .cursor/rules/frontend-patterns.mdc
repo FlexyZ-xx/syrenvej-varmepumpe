@@ -1,0 +1,123 @@
+---
+globs: public/*.js,public/*.html
+---
+
+# Frontend Development Patterns
+
+## Optimistic UI Updates
+
+All user actions (toggle, schedule) use optimistic updates:
+
+1. **Disable controls immediately** - Set `disabled`, adjust styling
+2. **Update expected state** - Store what we expect Arduino to report
+3. **Show loading animation** - Use consolidated waiting state in status box
+4. **Wait for confirmation** - Poll `loadCurrentState()` until Arduino confirms
+5. **Re-enable controls** - Only after confirmation or timeout (30s)
+
+Example pattern from [public/script.js](mdc:public/script.js):
+
+```javascript
+let waitingForResponse = false;
+let expectedState = null;
+
+toggle.addEventListener('change', async (e) => {
+    const newState = e.target.checked;
+    
+    expectedState = newState;
+    waitingForResponse = true;
+    
+    toggle.disabled = true;
+    toggle.style.opacity = '0.5';
+    toggle.style.pointerEvents = 'none'; // Block additional clicks
+    
+    showWaitingState('Waiting for relay confirmation...');
+    await sendCommand({ type: 'manual', action: newState ? 'on' : 'off' });
+    
+    // Timeout safety
+    setTimeout(() => {
+        if (waitingForResponse) {
+            toggle.disabled = false;
+            waitingForResponse = false;
+            hideWaitingState();
+        }
+    }, 30000);
+});
+```
+
+## Connection Status Management
+
+Track connection state separately from display state:
+
+```javascript
+let lastConnectionState = false; // Actual connection state
+let isShowingWaitingState = false; // UI is showing loading
+
+function updateArduinoStatus(isConnected) {
+    if (isShowingWaitingState) return; // Don't update during loading
+    
+    lastConnectionState = isConnected; // Store for restoration
+    
+    if (isConnected) {
+        // Enable controls (if not waiting for response)
+        statusText.textContent = 'Connected';
+        lastSeenEl.textContent = 'Active';
+    } else {
+        // Disable ALL controls when disconnected
+        toggle.disabled = true;
+        // ... disable schedule controls
+        statusText.textContent = 'Not Connected';
+    }
+}
+
+function hideWaitingState() {
+    isShowingWaitingState = false;
+    // Restore last known state, don't force to false
+    updateArduinoStatus(lastConnectionState);
+}
+```
+
+## API Communication
+
+Always include API key in headers:
+
+```javascript
+const API_KEY = 'your-api-key-here';
+
+await fetch(`${API_BASE}/command.js`, {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': API_KEY
+    },
+    body: JSON.stringify(command)
+});
+```
+
+## Schedule Persistence
+
+Only update schedule display when data is present:
+
+```javascript
+// In loadCurrentState()
+if (data.hasOwnProperty('schedule')) {
+    currentSchedule = data.schedule;
+    updateScheduleDisplay(currentSchedule);
+}
+// Don't clear schedule if missing from response!
+```
+
+## Loading State Consolidation
+
+Use single status box for all loading states (toggle, schedule, heartbeat):
+
+```javascript
+function showWaitingState(message) {
+    isShowingWaitingState = true;
+    statusBox.classList.add('waiting');
+    statusDot.style.display = 'none';
+    statusSpinner.style.display = 'block';
+    statusText.textContent = message;
+}
+```
+
+This prevents UI "jumping" from multiple loading indicators.

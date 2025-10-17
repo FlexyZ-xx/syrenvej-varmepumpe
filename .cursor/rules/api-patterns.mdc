@@ -1,0 +1,64 @@
+---
+globs: api/*.js
+---
+
+# API Endpoint Patterns
+
+## Authentication
+All API endpoints MUST use API key authentication:
+
+```javascript
+const API_KEY = (process.env.API_KEY || 'change-me-in-production').trim();
+
+function authenticate(req) {
+    const apiKey = req.headers['x-api-key'];
+    return apiKey === API_KEY;
+}
+
+export default async function handler(req, res) {
+    // CORS headers
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-API-Key');
+    
+    if (req.method === 'OPTIONS') return res.status(200).end();
+    if (!authenticate(req)) return res.status(401).json({ error: 'Unauthorized - Invalid API Key' });
+    
+    // ... endpoint logic
+}
+```
+
+## State Management Pattern
+
+The API maintains state in memory (not database):
+
+```javascript
+let arduinoState = {
+    relayState: 'off',
+    schedule: null,
+    lastUpdate: null // Timestamp when Arduino last reported
+};
+```
+
+## Endpoint Responsibilities
+
+### [api/command.js](mdc:api/command.js)
+- Receives POST from web UI with commands
+- Stores commands in `arduinoState`
+- Arduino polls this via GET to receive pending commands
+
+### [api/status.js](mdc:api/status.js)
+- Receives POST from Arduino with current state
+- Updates `lastUpdate` timestamp
+- Web UI polls via GET to check connection status
+- Returns `isConnected` boolean (based on last update < 10 seconds)
+
+## Connection Status Calculation
+
+Always calculate `isConnected` server-side:
+
+```javascript
+isConnected: arduinoState.lastUpdate ? (Date.now() - arduinoState.lastUpdate) < 10000 : false
+```
+
+This prevents client/server clock skew issues.

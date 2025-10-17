@@ -1,0 +1,147 @@
+---
+globs: arduino/**/*.ino
+---
+
+# Arduino/ESP32 Development Patterns
+
+## Hardware Setup
+
+- **Board**: ESP32 (not ESP8266)
+- **Relay**: Soldered I2C Relay Board (address 0x30)
+- **GPIO Pin**: GPIO5 for status LED (relay controlled via I2C)
+
+## Required Libraries
+
+```cpp
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <EEPROM.h>
+#include <ArduinoJson.h>
+#include <time.h>
+#include "Relay-SOLDERED.h"
+```
+
+## I2C Relay Control Pattern
+
+Initialize and control the Soldered I2C Relay:
+
+```cpp
+CH_Relay Relay;
+
+void setup() {
+    Relay.begin(0x30); // I2C address
+}
+
+void setRelay(bool state) {
+    Relay.relayControl(1, state ? HIGH : LOW); // Channel 1
+    digitalWrite(5, state ? HIGH : LOW); // Status LED
+}
+```
+
+## EEPROM State Persistence
+
+Store relay state and schedule in EEPROM:
+
+```cpp
+struct Schedule {
+    bool active;
+    int year, month, day, hour, minute;
+    char action[4]; // "on" or "off"
+    bool executed;
+};
+
+#define RELAY_STATE_ADDR 0
+#define SCHEDULE_ADDR 1
+
+void saveRelayState() {
+    EEPROM.write(RELAY_STATE_ADDR, relayState ? 1 : 0);
+    EEPROM.commit();
+}
+
+void saveSchedule() {
+    EEPROM.put(SCHEDULE_ADDR, currentSchedule);
+    EEPROM.commit();
+}
+```
+
+## HTTP Request Pattern for ESP32
+
+Use HTTPClient without WiFiClient:
+
+```cpp
+HTTPClient http;
+http.begin(url); // Direct URL, no WiFiClient needed
+http.addHeader("Content-Type", "application/json");
+http.addHeader("X-API-Key", API_KEY);
+
+int httpCode = http.POST(jsonPayload);
+if (httpCode > 0) {
+    String response = http.getString();
+}
+http.end();
+```
+
+## Polling Architecture
+
+Arduino continuously polls the cloud API:
+
+```cpp
+void loop() {
+    // Poll for commands every 2 seconds
+    if (millis() - lastCommandCheck > 2000) {
+        checkForCommands();
+        lastCommandCheck = millis();
+    }
+    
+    // Report status every 5 seconds
+    if (millis() - lastStatusReport > 5000) {
+        reportStatus();
+        lastStatusReport = millis();
+    }
+    
+    // Check schedule every minute
+    checkSchedule();
+}
+```
+
+## Auto-Clear Executed Schedules
+
+After executing a schedule, clear it automatically:
+
+```cpp
+void checkSchedule() {
+    if (!currentSchedule.active || currentSchedule.executed) return;
+    
+    if (/* time matches schedule */) {
+        Serial.println("Executing scheduled action!");
+        
+        bool newState = (strcmp(currentSchedule.action, "on") == 0);
+        setRelay(newState);
+        saveRelayState();
+        
+        // Clear schedule after execution
+        currentSchedule.active = false;
+        currentSchedule.executed = false;
+        saveSchedule();
+    }
+}
+```
+
+## Configuration
+
+Store API credentials at the top of the .ino file:
+
+```cpp
+const char* API_HOST = "your-app.vercel.app";
+const char* COMMAND_ENDPOINT = "/api/command.js";
+const char* STATUS_ENDPOINT = "/api/status.js";
+const char* API_KEY = "your-64-char-api-key-here";
+```
+
+## NTP Time Synchronization
+
+Required for schedule functionality:
+
+```cpp
+configTime(3600, 3600, "pool.ntp.org"); // GMT+1 with DST
+```

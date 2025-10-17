@@ -1,0 +1,124 @@
+---
+description: Deployment and git workflows
+---
+
+# Deployment Patterns
+
+## Vercel Deployment
+
+Deploy to production after every change:
+
+```bash
+git add -A
+git commit -m "Descriptive commit message"
+git push origin main
+vercel --prod
+```
+
+## Vercel Configuration
+
+From [vercel.json](mdc:vercel.json):
+
+```json
+{
+  "version": 2,
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/public/$1"
+    }
+  ]
+}
+```
+
+## Environment Variables
+
+Set in Vercel dashboard or via CLI:
+
+```bash
+vercel env add API_KEY production
+```
+
+Access in API routes:
+
+```javascript
+const API_KEY = (process.env.API_KEY || 'fallback').trim();
+```
+
+**Always use `.trim()`** to remove potential whitespace issues!
+
+## Git Workflow
+
+This project uses personal GitHub account (not company):
+
+```bash
+# Local git config (project-specific)
+git config --local user.email "personal@email.com"
+git config --local user.name "Personal Name"
+```
+
+## File Structure for Deployment
+
+```
+cloud/
+├── api/              # Serverless functions
+│   ├── command.js
+│   └── status.js
+├── public/           # Static files
+│   ├── index.html
+│   ├── script.js
+│   ├── styles.css
+│   └── auth.js
+├── arduino/          # Not deployed, for reference
+├── vercel.json       # Deployment config
+└── package.json      # Project metadata
+```
+
+## Ignored Files
+
+From `.gitignore`:
+
+```
+node_modules/
+.vercel/
+deployment_info.txt
+arduino_config.txt
+```
+
+## Build Settings
+
+From [package.json](mdc:package.json):
+
+```json
+{
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "npm run vercel build"
+  }
+}
+```
+
+## Arduino Updates
+
+After deploying new endpoints:
+
+1. Update `API_HOST` in .ino file
+2. Update `API_KEY` if rotated
+3. Recompile and upload to ESP32
+
+## Testing Checklist
+
+Before marking deployment complete:
+
+- [ ] Web interface loads
+- [ ] Login works (if changed)
+- [ ] API endpoints respond (check Network tab)
+- [ ] Arduino can reach endpoints
+- [ ] Toggle works
+- [ ] Schedule works
+- [ ] Connection status accurate
+- [ ] Mobile UI looks good

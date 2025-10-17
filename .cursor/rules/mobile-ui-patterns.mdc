@@ -1,0 +1,153 @@
+---
+globs: public/*.css
+---
+
+# Mobile UI Design Patterns
+
+## Mobile-First Approach
+
+Always design for mobile first, then enhance for desktop.
+
+### Breakpoint Strategy
+
+Use single breakpoint at 600px:
+
+```css
+/* Default: Desktop styles */
+
+@media (max-width: 600px) {
+    /* Mobile overrides */
+}
+```
+
+## Mobile Size Guidelines
+
+From [public/styles.css](mdc:public/styles.css):
+
+```css
+@media (max-width: 600px) {
+    body {
+        padding: 8px;
+        padding-top: 15px;
+    }
+    
+    .card {
+        padding: 18px 15px;
+        border-radius: 10px;
+    }
+    
+    h1 {
+        font-size: 19px; /* Compact title */
+        margin-bottom: 18px;
+    }
+    
+    h2 {
+        font-size: 16px;
+        margin-bottom: 15px;
+    }
+    
+    /* Toggle switch - compact */
+    .switch {
+        width: 80px;
+        height: 40px;
+    }
+    
+    /* Form controls - compact */
+    .select-input {
+        padding: 10px;
+        font-size: 14px;
+    }
+    
+    .btn {
+        padding: 12px 16px;
+        font-size: 14px;
+    }
+}
+```
+
+## Disabled State Styling
+
+Provide clear visual feedback for disabled controls:
+
+```css
+.btn:disabled {
+    background: #cbd5e0;
+    color: #a0aec0;
+    cursor: not-allowed;
+    opacity: 0.6;
+    transform: none;
+    box-shadow: none;
+}
+
+.select-input:disabled {
+    background: #edf2f7;
+    color: #a0aec0;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+```
+
+## Loading State - Consolidated Box
+
+Use status box for loading animations to prevent UI jumping:
+
+```css
+.arduino-status {
+    padding: 15px;
+    background: #f7fafc;
+    border: 1px solid #e2e8f0;
+    transition: all 0.3s ease;
+}
+
+.arduino-status.waiting {
+    background: #ebf8ff; /* Blue tint */
+    border: 2px solid #4299e1;
+}
+
+.loading-spinner-inline {
+    width: 16px;
+    height: 16px;
+    border: 3px solid #bee3f8;
+    border-top: 3px solid #3182ce;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+```
+
+## Connection Status Colors
+
+```css
+.status-dot.connected {
+    background: #48bb78; /* Green */
+}
+
+.status-dot.offline {
+    background: #fc8181; /* Red */
+}
+```
+
+## Responsive Typography
+
+Reduce font sizes for mobile to maintain proportions:
+
+```css
+/* Desktop */
+h1 { font-size: 28px; }
+h2 { font-size: 22px; }
+
+/* Mobile */
+@media (max-width: 600px) {
+    h1 { font-size: 19px; }
+    h2 { font-size: 16px; }
+    .form-group label { font-size: 13px; }
+}
+```
+
+## Spacing Consistency
+
+Reduce all spacing proportionally on mobile:
+- Padding: ~30% reduction
+- Margins: ~30% reduction
+- Gaps: ~25% reduction
+
+This maintains visual hierarchy while fitting more content.

@@ -1,0 +1,118 @@
+---
+description: Security and authentication patterns
+---
+
+# Security Patterns
+
+## Two-Layer Authentication
+
+1. **Web Interface**: Client-side password (basic protection)
+2. **API Endpoints**: API key authentication (Arduino + Web)
+
+## Client-Side Password Protection
+
+From [public/auth.js](mdc:public/auth.js):
+
+```javascript
+const PASSWORD = 'your-password-here';
+const AUTH_KEY = 'syrenvej_auth';
+
+if (localStorage.getItem(AUTH_KEY) !== PASSWORD) {
+    // Block page load, show login form
+    document.write(/* login form HTML */);
+} else {
+    // User authenticated, allow access
+}
+```
+
+**Note**: This is basic protection, not cryptographic security.
+
+## API Key Authentication
+
+### Server-Side (API Routes)
+
+```javascript
+const API_KEY = (process.env.API_KEY || 'change-me-in-production').trim();
+
+function authenticate(req) {
+    const apiKey = req.headers['x-api-key'];
+    return apiKey === API_KEY;
+}
+
+// Always check before processing:
+if (!authenticate(req)) {
+    return res.status(401).json({ error: 'Unauthorized - Invalid API Key' });
+}
+```
+
+### Client-Side (Frontend)
+
+```javascript
+const API_KEY = 'your-64-char-hex-key';
+
+fetch(url, {
+    headers: {
+        'X-API-Key': API_KEY
+    }
+});
+```
+
+### Arduino
+
+```cpp
+const char* API_KEY = "your-64-char-hex-key";
+
+http.addHeader("X-API-Key", API_KEY);
+```
+
+## API Key Generation
+
+Use strong random keys:
+
+```bash
+openssl rand -hex 32  # Generates 64-character hex string
+```
+
+## Environment Variables
+
+Store API key securely in Vercel:
+
+```bash
+vercel env add API_KEY production
+# Paste generated key when prompted
+```
+
+**Never commit API keys to git!**
+
+## CORS Configuration
+
+API endpoints allow cross-origin requests:
+
+```javascript
+res.setHeader('Access-Control-Allow-Origin', '*');
+res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-API-Key');
+```
+
+## Credential Management
+
+- **Web Password**: Stored in [public/auth.js](mdc:public/auth.js)
+- **API Key**: Stored in:
+  - Vercel environment variable
+  - [arduino/.../syrenvej_varmepumpe.ino](mdc:arduino/syrenvej_varmepumpe/syrenvej_varmepumpe.ino)
+  - [public/script.js](mdc:public/script.js)
+
+Update all three locations when rotating API keys.
+
+## Documentation
+
+**Do not include actual passwords/keys in documentation files!**
+
+Reference where they're stored instead:
+
+```markdown
+## Authentication
+
+- **Password**: Check `public/auth.js`
+- **API Key**: Check `api/command.js` for format
+```
