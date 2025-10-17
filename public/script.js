@@ -89,9 +89,8 @@ function setupEventListeners() {
         toggle.style.opacity = '0.5';
         toggle.style.cursor = 'wait';
         
-        // Show loading indicator
-        const loadingEl = document.getElementById('toggleLoading');
-        loadingEl.style.display = 'flex';
+        // Show loading in status box
+        showWaitingState(`Waiting for ${command.toUpperCase()} confirmation...`);
         
         await sendCommand({ type: 'manual', action: command });
         
@@ -103,8 +102,7 @@ function setupEventListeners() {
                 expectedState = null;
                 toggle.style.opacity = '1';
                 toggle.style.cursor = 'pointer';
-                const loadingEl = document.getElementById('toggleLoading');
-                loadingEl.style.display = 'none';
+                hideWaitingState();
             }
         }, 30000);
     });
@@ -144,6 +142,7 @@ function setupEventListeners() {
         // Disable all schedule controls and show loading
         setScheduleControlsState(false);
         waitingForSchedule = true;
+        showWaitingState('Waiting for schedule confirmation...');
 
         await sendCommand(schedule);
         
@@ -153,6 +152,7 @@ function setupEventListeners() {
                 setScheduleControlsState(true);
                 waitingForSchedule = false;
                 expectedSchedule = null;
+                hideWaitingState();
             }
         }, 30000);
     });
@@ -167,6 +167,7 @@ function setupEventListeners() {
         // Disable all schedule controls and show loading
         setScheduleControlsState(false);
         waitingForSchedule = true;
+        showWaitingState('Clearing schedule...');
         
         await sendCommand({ type: 'clear_schedule' });
         
@@ -175,6 +176,7 @@ function setupEventListeners() {
             if (waitingForSchedule) {
                 setScheduleControlsState(true);
                 waitingForSchedule = false;
+                hideWaitingState();
             }
         }, 30000);
     });
@@ -192,12 +194,31 @@ function setScheduleControlsState(enabled) {
         el.disabled = !enabled;
         el.style.opacity = enabled ? '1' : '0.5';
     });
+}
+
+function showWaitingState(message) {
+    const statusBox = document.getElementById('arduinoStatus');
+    const statusDot = document.getElementById('statusDot');
+    const statusSpinner = document.getElementById('statusSpinner');
+    const statusText = document.getElementById('statusText');
     
-    // Show/hide loading animation
-    const loadingEl = document.getElementById('scheduleLoading');
-    if (loadingEl) {
-        loadingEl.style.display = enabled ? 'none' : 'flex';
-    }
+    statusBox.classList.add('waiting');
+    statusDot.style.display = 'none';
+    statusSpinner.style.display = 'block';
+    statusText.textContent = message;
+}
+
+function hideWaitingState() {
+    const statusBox = document.getElementById('arduinoStatus');
+    const statusDot = document.getElementById('statusDot');
+    const statusSpinner = document.getElementById('statusSpinner');
+    
+    statusBox.classList.remove('waiting');
+    statusDot.style.display = 'block';
+    statusSpinner.style.display = 'none';
+    
+    // Restore normal status
+    updateArduinoStatus(false);
 }
 
 async function sendCommand(command) {
@@ -228,9 +249,8 @@ async function sendCommand(command) {
         toggle.style.opacity = '1';
         toggle.style.cursor = 'pointer';
         
-        // Hide toggle loading
-        const toggleLoadingEl = document.getElementById('toggleLoading');
-        if (toggleLoadingEl) toggleLoadingEl.style.display = 'none';
+        // Hide waiting state
+        hideWaitingState();
         
         // Re-enable schedule controls if schedule command failed
         if (waitingForSchedule) {
@@ -270,9 +290,8 @@ async function loadCurrentState() {
                 toggle.style.opacity = '1';
                 toggle.style.cursor = 'pointer';
                 
-                // Hide loading indicator
-                const loadingEl = document.getElementById('toggleLoading');
-                loadingEl.style.display = 'none';
+                // Hide waiting state
+                hideWaitingState();
             }
             // If state doesn't match, keep waiting
         } else {
@@ -287,6 +306,7 @@ async function loadCurrentState() {
                 setScheduleControlsState(true);
                 waitingForSchedule = false;
                 expectedSchedule = null;
+                hideWaitingState();
             }
             // If schedule doesn't match, keep waiting
         }

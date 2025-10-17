@@ -20,16 +20,11 @@
                 </label>
             </div>
             
-            <!-- Toggle Loading Indicator -->
-            <div id="toggleLoading" style="display: none;">
-                <div class="loading-spinner"></div>
-                <div class="loading-text">Waiting for varmepumpe confirmation...</div>
-            </div>
-            
-            <!-- Arduino Connection Status -->
+            <!-- Arduino Connection Status (with integrated loading) -->
             <div id="arduinoStatus" class="arduino-status">
                 <div class="status-indicator">
                     <span class="status-dot" id="statusDot"></span>
+                    <div class="loading-spinner-inline" id="statusSpinner" style="display: none;"></div>
                     <span id="statusText">Waiting for varmepumpe...</span>
                 </div>
                 <div class="last-seen" id="lastSeen"></div>
@@ -93,11 +88,6 @@
             <div class="button-group">
                 <button id="saveScheduleBtn" class="btn btn-primary">Save Schedule</button>
                 <button id="clearScheduleBtn" class="btn btn-secondary">Clear Schedule</button>
-            </div>
-            
-            <div id="scheduleLoading" style="display: none;">
-                <div class="loading-spinner"></div>
-                <div class="loading-text">Waiting for varmepumpe confirmation...</div>
             </div>
 
             <div id="statusMessage" class="status-message"></div>

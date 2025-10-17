@@ -244,26 +244,18 @@ input:checked + .slider:before {
     display: block;
 }
 
-#toggleLoading,
-#scheduleLoading {
-    margin-top: 20px;
-    padding: 20px;
-    text-align: center;
-    background: #ebf8ff;
-    border-radius: 8px;
-    border: 2px solid #4299e1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-}
-
 .arduino-status {
     margin-top: 20px;
     padding: 15px;
     background: #f7fafc;
     border-radius: 8px;
     border: 1px solid #e2e8f0;
+    transition: all 0.3s ease;
+}
+
+.arduino-status.waiting {
+    background: #ebf8ff;
+    border: 2px solid #4299e1;
 }
 
 .status-indicator {
@@ -308,13 +300,14 @@ input:checked + .slider:before {
     color: #718096;
 }
 
-.loading-spinner {
-    width: 40px;
-    height: 40px;
-    border: 4px solid #bee3f8;
-    border-top: 4px solid #3182ce;
+.loading-spinner-inline {
+    width: 16px;
+    height: 16px;
+    border: 3px solid #bee3f8;
+    border-top: 3px solid #3182ce;
     border-radius: 50%;
     animation: spin 1s linear infinite;
+    flex-shrink: 0;
 }
 
 @keyframes spin {
