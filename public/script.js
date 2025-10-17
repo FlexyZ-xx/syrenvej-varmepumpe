@@ -68,29 +68,38 @@ let expectedSchedule = null;
 let lastArduinoHeartbeat = null;
 
 function setupEventListeners() {
-    // Manual toggle
+    // Manual toggle - use click event for better control
     const toggle = document.getElementById('manualToggle');
-    toggle.addEventListener('change', async (e) => {
-        // Prevent multiple rapid clicks
+    
+    // Block clicks while waiting
+    toggle.addEventListener('click', (e) => {
         if (waitingForResponse) {
             e.preventDefault();
-            // Revert toggle to previous state
-            toggle.checked = expectedState !== null ? expectedState : !e.target.checked;
+            e.stopPropagation();
+            return false;
+        }
+    }, true); // Capture phase to block before change event
+    
+    toggle.addEventListener('change', async (e) => {
+        // Double-check we're not waiting
+        if (waitingForResponse) {
+            e.preventDefault();
+            toggle.checked = expectedState;
             return;
         }
         
         const newState = e.target.checked;
         const command = newState ? 'on' : 'off';
         
-        // Optimistic update - keep toggle in new position
-        toggle.checked = newState;
+        // Set expected state and waiting flag IMMEDIATELY
         expectedState = newState;
+        waitingForResponse = true;
         
         // Disable toggle while waiting for Relay
         toggle.disabled = true;
-        waitingForResponse = true;
         toggle.style.opacity = '0.5';
         toggle.style.cursor = 'wait';
+        toggle.style.pointerEvents = 'none'; // Extra protection
         
         // Show loading in status box
         showWaitingState(`Waiting for ${command.toUpperCase()} confirmation...`);
@@ -105,6 +114,7 @@ function setupEventListeners() {
                 expectedState = null;
                 toggle.style.opacity = '1';
                 toggle.style.cursor = 'pointer';
+                toggle.style.pointerEvents = 'auto';
                 hideWaitingState();
             }
         }, 30000);
@@ -251,6 +261,7 @@ async function sendCommand(command) {
         waitingForResponse = false;
         toggle.style.opacity = '1';
         toggle.style.cursor = 'pointer';
+        toggle.style.pointerEvents = 'auto';
         
         // Hide waiting state
         hideWaitingState();
@@ -292,6 +303,7 @@ async function loadCurrentState() {
                 expectedState = null;
                 toggle.style.opacity = '1';
                 toggle.style.cursor = 'pointer';
+                toggle.style.pointerEvents = 'auto';
                 
                 // Hide waiting state
                 hideWaitingState();
