@@ -415,16 +415,59 @@ function updateArduinoStatus(isConnected) {
     const statusText = document.getElementById('statusText');
     const lastSeenEl = document.getElementById('lastSeen');
     
+    // Get control elements
+    const toggle = document.getElementById('manualToggle');
+    const saveScheduleBtn = document.getElementById('saveScheduleBtn');
+    const clearScheduleBtn = document.getElementById('clearScheduleBtn');
+    const daySelect = document.getElementById('daySelect');
+    const monthSelect = document.getElementById('monthSelect');
+    const yearSelect = document.getElementById('yearSelect');
+    const hourSelect = document.getElementById('hourSelect');
+    const minuteSelect = document.getElementById('minuteSelect');
+    const actionSelect = document.getElementById('actionSelect');
+    
     // Use server's isConnected value (it knows best when Arduino last reported)
     if (isConnected) {
         // Connected - green
         statusDot.className = 'status-dot connected';
         statusText.textContent = 'Connected';
         lastSeenEl.textContent = 'Active';
+        
+        // Enable controls only if not waiting for response
+        if (!waitingForResponse) {
+            toggle.disabled = false;
+            toggle.style.opacity = '1';
+            toggle.style.cursor = 'pointer';
+        }
+        
+        if (!waitingForSchedule) {
+            saveScheduleBtn.disabled = false;
+            clearScheduleBtn.disabled = false;
+            daySelect.disabled = false;
+            monthSelect.disabled = false;
+            yearSelect.disabled = false;
+            hourSelect.disabled = false;
+            minuteSelect.disabled = false;
+            actionSelect.disabled = false;
+        }
     } else {
         // Not connected - red
         statusDot.className = 'status-dot offline';
         statusText.textContent = 'Not Connected';
+        
+        // Disable all controls when disconnected
+        toggle.disabled = true;
+        toggle.style.opacity = '0.5';
+        toggle.style.cursor = 'not-allowed';
+        
+        saveScheduleBtn.disabled = true;
+        clearScheduleBtn.disabled = true;
+        daySelect.disabled = true;
+        monthSelect.disabled = true;
+        yearSelect.disabled = true;
+        hourSelect.disabled = true;
+        minuteSelect.disabled = true;
+        actionSelect.disabled = true;
         
         if (lastArduinoHeartbeat) {
             // Calculate time since last update using client time as reference
