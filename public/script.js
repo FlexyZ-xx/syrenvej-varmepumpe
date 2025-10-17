@@ -102,7 +102,7 @@ function setupEventListeners() {
         toggle.style.pointerEvents = 'none'; // Extra protection
         
         // Show loading in status box
-        showWaitingState(`Waiting for ${command.toUpperCase()} confirmation...`);
+        showWaitingState('Waiting for relay confirmation...');
         
         await sendCommand({ type: 'manual', action: command });
         
@@ -155,7 +155,7 @@ function setupEventListeners() {
         // Disable all schedule controls and show loading
         setScheduleControlsState(false);
         waitingForSchedule = true;
-        showWaitingState('Waiting for schedule confirmation...');
+        showWaitingState('Waiting for relay confirmation...');
 
         await sendCommand(schedule);
         
@@ -180,7 +180,7 @@ function setupEventListeners() {
         // Disable all schedule controls and show loading
         setScheduleControlsState(false);
         waitingForSchedule = true;
-        showWaitingState('Clearing schedule...');
+        showWaitingState('Waiting for relay confirmation...');
         
         await sendCommand({ type: 'clear_schedule' });
         
