@@ -62,14 +62,23 @@ function populateSelects() {
 }
 
 let waitingForResponse = false;
+let expectedState = null;
 
 function setupEventListeners() {
     // Manual toggle
     const toggle = document.getElementById('manualToggle');
     toggle.addEventListener('change', async (e) => {
-        if (waitingForResponse) return;
+        if (waitingForResponse) {
+            e.preventDefault();
+            return;
+        }
         
-        const command = e.target.checked ? 'on' : 'off';
+        const newState = e.target.checked;
+        const command = newState ? 'on' : 'off';
+        
+        // Optimistic update - keep toggle in new position
+        toggle.checked = newState;
+        expectedState = newState;
         
         // Disable toggle while waiting for Arduino
         toggle.disabled = true;
@@ -79,13 +88,16 @@ function setupEventListeners() {
         
         await sendCommand({ type: 'manual', action: command });
         
-        // Re-enable after Arduino confirms (or timeout after 15 seconds)
+        // Timeout after 30 seconds if Arduino doesn't respond
         setTimeout(() => {
-            toggle.disabled = false;
-            waitingForResponse = false;
-            toggle.style.opacity = '1';
-            toggle.style.cursor = 'pointer';
-        }, 15000);
+            if (waitingForResponse) {
+                toggle.disabled = false;
+                waitingForResponse = false;
+                expectedState = null;
+                toggle.style.opacity = '1';
+                toggle.style.cursor = 'pointer';
+            }
+        }, 30000);
     });
 
     // Save schedule
@@ -130,12 +142,19 @@ async function sendCommand(command) {
         if (!response.ok) {
             throw new Error('Failed to send command');
         }
-
-        showStatus('Command sent successfully!', 'success');
-        setTimeout(loadCurrentState, 500);
+        
+        // Don't show success message
+        // Don't reload state - wait for Arduino to report back
     } catch (error) {
         console.error('Error sending command:', error);
         showStatus('Failed to send command', 'error');
+        
+        // On error, re-enable toggle
+        const toggle = document.getElementById('manualToggle');
+        toggle.disabled = false;
+        waitingForResponse = false;
+        toggle.style.opacity = '1';
+        toggle.style.cursor = 'pointer';
     }
 }
 
@@ -150,19 +169,24 @@ async function loadCurrentState() {
 
         const data = await response.json();
         
-        // Update toggle (without triggering change event)
         const toggle = document.getElementById('manualToggle');
-        const oldState = toggle.checked;
-        const newState = data.relayState === 'on';
+        const arduinoState = data.relayState === 'on';
         
-        toggle.checked = newState;
-        
-        // If Arduino confirmed the state change, re-enable toggle
-        if (waitingForResponse && oldState !== newState) {
-            toggle.disabled = false;
-            waitingForResponse = false;
-            toggle.style.opacity = '1';
-            toggle.style.cursor = 'pointer';
+        // If waiting for confirmation, check if Arduino confirmed the expected state
+        if (waitingForResponse && expectedState !== null) {
+            if (arduinoState === expectedState) {
+                // Arduino confirmed! Re-enable toggle
+                toggle.checked = arduinoState;
+                toggle.disabled = false;
+                waitingForResponse = false;
+                expectedState = null;
+                toggle.style.opacity = '1';
+                toggle.style.cursor = 'pointer';
+            }
+            // If state doesn't match, keep waiting
+        } else {
+            // Normal update when not waiting
+            toggle.checked = arduinoState;
         }
 
         // Update schedule display

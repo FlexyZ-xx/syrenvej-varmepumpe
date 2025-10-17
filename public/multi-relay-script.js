@@ -4,6 +4,7 @@ const API_KEY = 'a3bad1660cef3fd1bb3e9573711dd36f3fa8c5a1dd61d1d0e3cb991e330b1fa
 
 let relaysData = [];
 let waitingForResponse = {}; // Track which relays are waiting for response
+let expectedStates = {}; // Track expected states for each relay
 
 // Initialize the interface
 document.addEventListener('DOMContentLoaded', () => {
@@ -128,12 +129,18 @@ async function sendCommand(command) {
         if (!response.ok) {
             throw new Error('Failed to send command');
         }
-
-        showStatus('Command sent successfully!', 'success');
-        setTimeout(loadRelaysState, 500);
+        
+        // Don't show success message
+        // Don't reload state - wait for Arduino to report back
     } catch (error) {
         console.error('Error sending command:', error);
         showStatus('Failed to send command', 'error');
+        
+        // On error, clear waiting state for that relay
+        if (command.relayIndex !== undefined) {
+            delete waitingForResponse[command.relayIndex];
+            renderRelayGrid();
+        }
     }
 }
 
@@ -151,11 +158,12 @@ async function loadRelaysState() {
         if (data.relays) {
             // Check if any waiting relays got their state confirmed
             data.relays.forEach((relay, index) => {
-                if (waitingForResponse[index]) {
-                    const oldRelay = relaysData[index];
-                    // If state changed, Arduino confirmed it
-                    if (oldRelay && oldRelay.state !== relay.state) {
+                if (waitingForResponse[index] && expectedStates[index] !== undefined) {
+                    const arduinoState = relay.state === 'on';
+                    // If Arduino reports the expected state, clear waiting
+                    if (arduinoState === expectedStates[index]) {
                         delete waitingForResponse[index];
+                        delete expectedStates[index];
                     }
                 }
             });
@@ -208,26 +216,32 @@ function renderRelayGrid() {
         // Add toggle event listener
         const toggle = card.querySelector('input[type="checkbox"]');
         toggle.addEventListener('change', async (e) => {
-            if (waitingForResponse[index]) return;
+            if (waitingForResponse[index]) {
+                e.preventDefault();
+                return;
+            }
             
-            const command = e.target.checked ? 'on' : 'off';
+            const newState = e.target.checked;
+            const command = newState ? 'on' : 'off';
             
-            // Disable toggle while waiting
-            toggle.disabled = true;
-            toggle.style.opacity = '0.5';
-            toggle.style.cursor = 'wait';
+            // Optimistic update - keep toggle in new position
+            toggle.checked = newState;
+            expectedStates[index] = newState;
+            
+            // Mark as waiting and re-render
             waitingForResponse[index] = true;
+            renderRelayGrid();
             
             await sendCommand({ type: 'manual', action: command, relayIndex: index });
             
-            // Timeout after 15 seconds
+            // Timeout after 30 seconds
             setTimeout(() => {
-                toggle.disabled = false;
-                toggle.style.opacity = '1';
-                toggle.style.cursor = 'pointer';
-                delete waitingForResponse[index];
-                renderRelayGrid(); // Re-render to update UI
-            }, 15000);
+                if (waitingForResponse[index]) {
+                    delete waitingForResponse[index];
+                    delete expectedStates[index];
+                    renderRelayGrid();
+                }
+            }, 30000);
         });
         
         grid.appendChild(card);
