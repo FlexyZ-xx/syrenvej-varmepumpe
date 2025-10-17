@@ -3,7 +3,7 @@
 let pendingCommand = null;
 
 // API Key Authentication
-const API_KEY = process.env.API_KEY || 'change-me-in-production';
+const API_KEY = (process.env.API_KEY || 'change-me-in-production').trim();
 
 function authenticate(req) {
     const apiKey = req.headers['x-api-key'];

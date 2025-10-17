@@ -1,6 +1,6 @@
 // API Configuration
 const API_BASE = window.location.origin + '/api';
-const API_KEY = 'change-me-in-production';
+const API_KEY = 'a3bad1660cef3fd1bb3e9573711dd36f3fa8c5a1dd61d1d0e3cb991e330b1fa4';
 
 let relaysData = [];
 
@@ -115,7 +115,7 @@ function setupEventListeners() {
 
 async function sendCommand(command) {
     try {
-        const response = await fetch(`${API_BASE}/command`, {
+        const response = await fetch(`${API_BASE}/command.js`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -138,7 +138,7 @@ async function sendCommand(command) {
 
 async function loadRelaysState() {
     try {
-        const response = await fetch(`${API_BASE}/status`, {
+        const response = await fetch(`${API_BASE}/status.js`, {
             headers: {
                 'X-API-Key': API_KEY
             }

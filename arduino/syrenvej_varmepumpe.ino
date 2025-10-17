@@ -25,10 +25,10 @@ const char* WIFI_SSID = "YOUR_WIFI_SSID";
 const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
 
 // API Configuration
-const char* API_HOST = "https://your-app.vercel.app";  // Update with your Vercel URL
-const char* COMMAND_ENDPOINT = "/api/command";
-const char* STATUS_ENDPOINT = "/api/status";
-const char* API_KEY = "your-secure-api-key-here";  // IMPORTANT: Update this!
+const char* API_HOST = "https://syrenvej-varmepumpe.vercel.app";
+const char* COMMAND_ENDPOINT = "/api/command.js";
+const char* STATUS_ENDPOINT = "/api/status.js";
+const char* API_KEY = "a3bad1660cef3fd1bb3e9573711dd36f3fa8c5a1dd61d1d0e3cb991e330b1fa4";
 
 // Hardware Configuration
 const int RELAY_PIN = D1;  // GPIO5 on ESP8266. Adjust for your setup
