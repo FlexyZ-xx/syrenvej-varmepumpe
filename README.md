@@ -63,9 +63,9 @@ GPIO22 (SCL) →    SCL
 ```
 
 **Relay Connections:**
-- **COM** → Heat pump power source
-- **NO** (Normally Open) → Heat pump control wire
-- **NC** → Not used
+- **NO**    → Default closed → Heat pump control wire
+- **COM**   → Heat pump power source
+- **NC**    → Default open → Heat pump control wire
 
 ## Web Interface
 
