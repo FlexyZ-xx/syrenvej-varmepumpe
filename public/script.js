@@ -67,6 +67,7 @@ let waitingForSchedule = false;
 let expectedSchedule = null;
 let lastArduinoHeartbeat = null;
 let isShowingWaitingState = false;
+let currentSchedule = null;
 
 function setupEventListeners() {
     // Manual toggle - use click event for better control
@@ -329,7 +330,12 @@ async function loadCurrentState() {
             // If schedule doesn't match, keep waiting
         }
         
-        updateScheduleDisplay(data.schedule);
+        // Only update schedule display if we have schedule data in the response
+        if (data.hasOwnProperty('schedule')) {
+            currentSchedule = data.schedule;
+            updateScheduleDisplay(currentSchedule);
+        }
+        // If schedule is not in response, keep showing current schedule
     } catch (error) {
         console.error('Error loading state:', error);
     }
@@ -358,9 +364,11 @@ function schedulesMatch(actual, expected) {
 function updateScheduleDisplay(schedule) {
     const container = document.getElementById('currentSchedule');
     
-    if (!schedule || !schedule.year) {
+    // Only clear if schedule is explicitly null or empty (not just missing from response)
+    if (!schedule || !schedule.year || schedule.year === 0) {
         container.innerHTML = '<div style="color: #718096;">No schedule set</div>';
         container.classList.remove('has-schedule', 'executed');
+        currentSchedule = null;
         return;
     }
 
