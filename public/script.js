@@ -71,8 +71,11 @@ function setupEventListeners() {
     // Manual toggle
     const toggle = document.getElementById('manualToggle');
     toggle.addEventListener('change', async (e) => {
+        // Prevent multiple rapid clicks
         if (waitingForResponse) {
             e.preventDefault();
+            // Revert toggle to previous state
+            toggle.checked = expectedState !== null ? expectedState : !e.target.checked;
             return;
         }
         
@@ -83,7 +86,7 @@ function setupEventListeners() {
         toggle.checked = newState;
         expectedState = newState;
         
-        // Disable toggle while waiting for Arduino
+        // Disable toggle while waiting for Relay
         toggle.disabled = true;
         waitingForResponse = true;
         toggle.style.opacity = '0.5';
@@ -94,7 +97,7 @@ function setupEventListeners() {
         
         await sendCommand({ type: 'manual', action: command });
         
-        // Timeout after 30 seconds if Arduino doesn't respond
+        // Timeout after 30 seconds if Relay doesn't respond
         setTimeout(() => {
             if (waitingForResponse) {
                 toggle.disabled = false;
@@ -146,7 +149,7 @@ function setupEventListeners() {
 
         await sendCommand(schedule);
         
-        // Timeout after 30 seconds if Arduino doesn't respond
+        // Timeout after 30 seconds if Relay doesn't respond
         setTimeout(() => {
             if (waitingForSchedule) {
                 setScheduleControlsState(true);
@@ -171,7 +174,7 @@ function setupEventListeners() {
         
         await sendCommand({ type: 'clear_schedule' });
         
-        // Timeout after 30 seconds if Arduino doesn't respond
+        // Timeout after 30 seconds if Relay doesn't respond
         setTimeout(() => {
             if (waitingForSchedule) {
                 setScheduleControlsState(true);
@@ -237,7 +240,7 @@ async function sendCommand(command) {
         }
         
         // Don't show success message
-        // Don't reload state - wait for Arduino to report back
+        // Don't reload state - wait for Relay to report back
     } catch (error) {
         console.error('Error sending command:', error);
         showStatus('Failed to send command', 'error');
@@ -279,10 +282,10 @@ async function loadCurrentState() {
         const toggle = document.getElementById('manualToggle');
         const arduinoState = data.relayState === 'on';
         
-        // If waiting for confirmation, check if Arduino confirmed the expected state
+        // If waiting for confirmation, check if Relay confirmed the expected state
         if (waitingForResponse && expectedState !== null) {
             if (arduinoState === expectedState) {
-                // Arduino confirmed! Re-enable toggle
+                // Relay confirmed! Re-enable toggle
                 toggle.checked = arduinoState;
                 toggle.disabled = false;
                 waitingForResponse = false;
@@ -299,10 +302,10 @@ async function loadCurrentState() {
             toggle.checked = arduinoState;
         }
 
-        // Update schedule display and check if Arduino confirmed
+        // Update schedule display and check if Relay confirmed
         if (waitingForSchedule) {
             if (schedulesMatch(data.schedule, expectedSchedule)) {
-                // Arduino confirmed! Re-enable controls
+                // Relay confirmed! Re-enable controls
                 setScheduleControlsState(true);
                 waitingForSchedule = false;
                 expectedSchedule = null;
@@ -381,7 +384,7 @@ function updateArduinoStatus(isConnected) {
     
     if (isConnected && lastArduinoHeartbeat) {
         statusDot.className = 'status-dot connected';
-        statusText.textContent = 'Arduino Connected';
+        statusText.textContent = 'Relay Connected';
         
         const timeSince = getTimeSince(lastArduinoHeartbeat);
         lastSeenEl.textContent = `Last seen: ${timeSince}`;
@@ -389,17 +392,17 @@ function updateArduinoStatus(isConnected) {
         const timeSinceMs = Date.now() - lastArduinoHeartbeat;
         if (timeSinceMs < 15000) {
             statusDot.className = 'status-dot waiting';
-            statusText.textContent = 'Arduino Active';
+            statusText.textContent = 'Relay Active';
         } else {
             statusDot.className = 'status-dot offline';
-            statusText.textContent = 'Arduino Offline';
+            statusText.textContent = 'Relay Offline';
         }
         
         const timeSince = getTimeSince(lastArduinoHeartbeat);
         lastSeenEl.textContent = `Last seen: ${timeSince}`;
     } else {
         statusDot.className = 'status-dot waiting';
-        statusText.textContent = 'Waiting for Arduino...';
+        statusText.textContent = 'Waiting for Relay...';
         lastSeenEl.textContent = '';
     }
 }
