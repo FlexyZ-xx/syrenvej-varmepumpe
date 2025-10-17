@@ -173,17 +173,4 @@ if (!isAuthenticated()) {
             }
         });
     }, 100);
-    
-} else {
-    // User is authenticated - add logout button when page loads
-    window.addEventListener('DOMContentLoaded', () => {
-        const btn = document.createElement('button');
-        btn.id = 'logout-btn';
-        btn.textContent = '🚪 Logout';
-        btn.onclick = () => {
-            localStorage.removeItem(AUTH_KEY);
-            location.reload();
-        };
-        document.body.appendChild(btn);
-    });
 }
