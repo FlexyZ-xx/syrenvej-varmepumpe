@@ -244,6 +244,7 @@ input:checked + .slider:before {
     display: block;
 }
 
+#toggleLoading,
 #scheduleLoading {
     margin-top: 20px;
     padding: 20px;
@@ -255,6 +256,56 @@ input:checked + .slider:before {
     flex-direction: column;
     align-items: center;
     gap: 12px;
+}
+
+.arduino-status {
+    margin-top: 20px;
+    padding: 15px;
+    background: #f7fafc;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 500;
+    font-size: 14px;
+    color: #2d3748;
+}
+
+.status-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #cbd5e0;
+    transition: background 0.3s ease;
+}
+
+.status-dot.connected {
+    background: #48bb78;
+    box-shadow: 0 0 8px rgba(72, 187, 120, 0.6);
+}
+
+.status-dot.waiting {
+    background: #ed8936;
+    animation: pulse 2s infinite;
+}
+
+.status-dot.offline {
+    background: #fc8181;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.last-seen {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #718096;
 }
 
 .loading-spinner {

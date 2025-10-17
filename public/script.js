@@ -65,6 +65,7 @@ let waitingForResponse = false;
 let expectedState = null;
 let waitingForSchedule = false;
 let expectedSchedule = null;
+let lastArduinoHeartbeat = null;
 
 function setupEventListeners() {
     // Manual toggle
@@ -88,6 +89,10 @@ function setupEventListeners() {
         toggle.style.opacity = '0.5';
         toggle.style.cursor = 'wait';
         
+        // Show loading indicator
+        const loadingEl = document.getElementById('toggleLoading');
+        loadingEl.style.display = 'flex';
+        
         await sendCommand({ type: 'manual', action: command });
         
         // Timeout after 30 seconds if Arduino doesn't respond
@@ -98,6 +103,8 @@ function setupEventListeners() {
                 expectedState = null;
                 toggle.style.opacity = '1';
                 toggle.style.cursor = 'pointer';
+                const loadingEl = document.getElementById('toggleLoading');
+                loadingEl.style.display = 'none';
             }
         }, 30000);
     });
@@ -221,6 +228,10 @@ async function sendCommand(command) {
         toggle.style.opacity = '1';
         toggle.style.cursor = 'pointer';
         
+        // Hide toggle loading
+        const toggleLoadingEl = document.getElementById('toggleLoading');
+        if (toggleLoadingEl) toggleLoadingEl.style.display = 'none';
+        
         // Re-enable schedule controls if schedule command failed
         if (waitingForSchedule) {
             setScheduleControlsState(true);
@@ -241,6 +252,10 @@ async function loadCurrentState() {
 
         const data = await response.json();
         
+        // Update heartbeat
+        lastArduinoHeartbeat = Date.now();
+        updateArduinoStatus(true);
+        
         const toggle = document.getElementById('manualToggle');
         const arduinoState = data.relayState === 'on';
         
@@ -254,6 +269,10 @@ async function loadCurrentState() {
                 expectedState = null;
                 toggle.style.opacity = '1';
                 toggle.style.cursor = 'pointer';
+                
+                // Hide loading indicator
+                const loadingEl = document.getElementById('toggleLoading');
+                loadingEl.style.display = 'none';
             }
             // If state doesn't match, keep waiting
         } else {
@@ -334,6 +353,56 @@ function updateScheduleDisplay(schedule) {
         container.classList.remove('executed');
     }
 }
+
+function updateArduinoStatus(isConnected) {
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const lastSeenEl = document.getElementById('lastSeen');
+    
+    if (isConnected && lastArduinoHeartbeat) {
+        statusDot.className = 'status-dot connected';
+        statusText.textContent = 'Arduino Connected';
+        
+        const timeSince = getTimeSince(lastArduinoHeartbeat);
+        lastSeenEl.textContent = `Last seen: ${timeSince}`;
+    } else if (lastArduinoHeartbeat) {
+        const timeSinceMs = Date.now() - lastArduinoHeartbeat;
+        if (timeSinceMs < 15000) {
+            statusDot.className = 'status-dot waiting';
+            statusText.textContent = 'Arduino Active';
+        } else {
+            statusDot.className = 'status-dot offline';
+            statusText.textContent = 'Arduino Offline';
+        }
+        
+        const timeSince = getTimeSince(lastArduinoHeartbeat);
+        lastSeenEl.textContent = `Last seen: ${timeSince}`;
+    } else {
+        statusDot.className = 'status-dot waiting';
+        statusText.textContent = 'Waiting for Arduino...';
+        lastSeenEl.textContent = '';
+    }
+}
+
+function getTimeSince(timestamp) {
+    const seconds = Math.floor((Date.now() - timestamp) / 1000);
+    
+    if (seconds < 5) return 'just now';
+    if (seconds < 60) return `${seconds} seconds ago`;
+    
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+    
+    const hours = Math.floor(minutes / 60);
+    return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+}
+
+// Check connection status periodically
+setInterval(() => {
+    if (lastArduinoHeartbeat) {
+        updateArduinoStatus(false);
+    }
+}, 1000);
 
 function showStatus(message, type) {
     const statusEl = document.getElementById('statusMessage');

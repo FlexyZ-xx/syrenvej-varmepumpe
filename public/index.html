@@ -19,6 +19,21 @@
                     <span class="slider"></span>
                 </label>
             </div>
+            
+            <!-- Toggle Loading Indicator -->
+            <div id="toggleLoading" style="display: none;">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">Waiting for Arduino confirmation...</div>
+            </div>
+            
+            <!-- Arduino Connection Status -->
+            <div id="arduinoStatus" class="arduino-status">
+                <div class="status-indicator">
+                    <span class="status-dot" id="statusDot"></span>
+                    <span id="statusText">Waiting for Arduino...</span>
+                </div>
+                <div class="last-seen" id="lastSeen"></div>
+            </div>
 
             <hr class="divider">
 
