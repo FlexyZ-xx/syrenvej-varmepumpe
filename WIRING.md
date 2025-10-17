@@ -95,63 +95,6 @@
 
 ---
 
-## Multi-Relay Setup (4 Relays)
-
-For controlling multiple devices (heat pump, circulation pump, etc.)
-
-### Components Needed
-- ESP8266 or ESP32
-- 4-Channel Relay Module
-- Jumper wires (6 pieces)
-
-### Wiring Diagram - 4 Channel Relay
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    ESP8266 NodeMCU                            │
-│                                                               │
-│   ┌─────────────────────────────────────────────────┐        │
-│   │  GND ●────────────────┐                         │        │
-│   │   5V ●────────────┐   │                         │        │
-│   │   D1 ●───────┐    │   │                         │        │
-│   │   D2 ●────┐  │    │   │                         │        │
-│   │   D5 ●─┐  │  │    │   │                         │        │
-│   │   D6 ●─┼──┼──┼──┐ │   │                         │        │
-│   └────────┼──┼──┼──┼─┼───┼─────────────────────────┘        │
-│            │  │  │  │ │   │                                  │
-└────────────┼──┼──┼──┼─┼───┼──────────────────────────────────┘
-             │  │  │  │ │   │
-             │  │  │  │ │   │   ┌────────────────────────────┐
-             │  │  │  │ │   │   │  4-Channel Relay Module    │
-             │  │  │  │ │   │   │                            │
-             │  │  │  │ │   └───┤ GND                        │
-             │  │  │  │ └───────┤ VCC                        │
-             │  │  │  └─────────┤ IN1  [Relay 1] ●───●───●   │
-             │  │  └────────────┤ IN2  [Relay 2] ●───●───●   │
-             │  └───────────────┤ IN3  [Relay 3] ●───●───●   │
-             └──────────────────┤ IN4  [Relay 4] ●───●───●   │
-                                │      [NO][COM][NC]          │
-                                └────────────────────────────┘
-
-Legend:
-  NO  = Normally Open (connects when relay ON)
-  COM = Common (always connected)
-  NC  = Normally Closed (disconnects when relay ON)
-```
-
-### Multi-Relay Pin Connections
-
-| ESP8266 Pin | Relay Module | Function |
-|-------------|--------------|----------|
-| GND         | GND          | Ground |
-| 5V (VIN)    | VCC          | Power |
-| D1 (GPIO5)  | IN1          | Heat Pump Relay |
-| D2 (GPIO4)  | IN2          | Circulation Pump |
-| D5 (GPIO14) | IN3          | Spare 1 |
-| D6 (GPIO12) | IN4          | Spare 2 |
-
----
-
 ## Heat Pump Connection
 
 **⚠️ WARNING: High Voltage! If you're not comfortable with electrical work, hire a licensed electrician.**
@@ -233,15 +176,10 @@ Useful if you have a 12V power source available.
 
 ## Enclosure Recommendations
 
-### For Single Relay Setup
+### Recommended Enclosure
 - Small project box: 100mm x 60mm x 25mm
-- Ventilation holes for ESP8266 heat
+- Ventilation holes for ESP32 heat
 - Cable glands for wires
-
-### For Multi-Relay Setup
-- Larger enclosure: 150mm x 100mm x 50mm
-- Din rail mounting optional
-- Label each relay channel
 
 ### Weatherproofing
 If installing outdoors or in damp areas:

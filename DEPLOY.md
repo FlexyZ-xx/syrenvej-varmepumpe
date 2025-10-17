@@ -92,7 +92,7 @@ Paste your API key when prompted.
 
 ### Step 7: Update Web Interface
 
-Edit `public/script.js` and `public/multi-relay-script.js`:
+Edit `public/script.js`:
 
 Change this line:
 ```javascript

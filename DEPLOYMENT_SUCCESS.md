@@ -10,8 +10,7 @@
 
 ### 2. **Vercel Deployment** ☁️
 - **Production URL:** https://syrenvej-varmepumpe.vercel.app
-- **Single Relay Interface:** https://syrenvej-varmepumpe.vercel.app/
-- **Multi-Relay Interface:** https://syrenvej-varmepumpe.vercel.app/multi-relay.html
+- **Web Interface:** https://syrenvej-varmepumpe.vercel.app/
 
 ### 3. **GitHub Repository** 📦
 - **Repository:** https://github.com/FlexyZ-xx/syrenvej-varmepumpe
@@ -54,10 +53,10 @@ Both require `X-API-Key` header with the key above.
 
 ### For Arduino Setup
 
-Your Arduino sketches are already configured! Just update WiFi:
+Your Arduino sketch is already configured! Just update WiFi:
 
 ```cpp
-// In arduino/syrenvej_varmepumpe.ino or arduino/syrenvej_multi_relay.ino
+// In arduino/syrenvej_varmepumpe.ino
 
 const char* WIFI_SSID = "YOUR_WIFI_NAME";      // ← Add your WiFi
 const char* WIFI_PASSWORD = "YOUR_WIFI_PASS";  // ← Add your WiFi
@@ -83,10 +82,9 @@ const char* API_KEY = "a3bad1660cef3fd1bb3e9573711dd36f3fa8c5a1dd61d1d0e3cb991e3
 | Component | Status | Details |
 |-----------|--------|---------|
 | Web Interface | ✅ Live | https://syrenvej-varmepumpe.vercel.app |
-| Multi-Relay Interface | ✅ Live | /multi-relay.html |
 | API Authentication | ✅ Working | All endpoints secured |
 | GitHub Repository | ✅ Pushed | https://github.com/FlexyZ-xx/syrenvej-varmepumpe |
-| Arduino Sketches | ✅ Ready | Just add WiFi credentials |
+| Arduino Sketch | ✅ Ready | Just add WiFi credentials |
 | Vercel Environment | ✅ Configured | API_KEY set for all environments |
 | Git Configuration | ✅ Local Only | Company account unchanged |
 
@@ -122,7 +120,6 @@ const char* API_KEY = "a3bad1660cef3fd1bb3e9573711dd36f3fa8c5a1dd61d1d0e3cb991e3
 4. `arduino/syrenvej_varmepumpe.ino` - Production config
 5. `arduino/syrenvej_multi_relay.ino` - Production config
 6. `public/script.js` - API key + .js endpoints
-7. `public/multi-relay-script.js` - API key + .js endpoints
 
 ---
 
@@ -186,7 +183,7 @@ vercel --prod
 
 1. ✅ **Complete IoT System** - Cloud + Arduino
 2. ✅ **Secure API** - Authentication built-in
-3. ✅ **Professional Web UI** - Single & multi-relay
+3. ✅ **Professional Web UI** - Password protected interface
 4. ✅ **Version Control** - On your personal GitHub
 5. ✅ **Free Hosting** - Vercel free tier
 6. ✅ **Complete Docs** - README, WIRING, DEPLOY guides

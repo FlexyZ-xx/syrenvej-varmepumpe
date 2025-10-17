@@ -267,18 +267,17 @@ const int RELAY_PIN = D1;  // Change to your pin
 
 ## 📦 What's Included
 
-### Web Interfaces
-- **Single Relay**: `index.html` - Simple interface for one relay
-- **Multi-Relay**: `multi-relay.html` - Control up to 4 relays
+### Web Interface
+- **Control Interface**: `index.html` - Heat pump control with scheduling
 
-### Arduino Sketches
-- **Single Relay**: `arduino/syrenvej_varmepumpe.ino`
-- **Multi-Relay**: `arduino/syrenvej_multi_relay.ino`
+### Arduino Sketch
+- **ESP32 Controller**: `arduino/syrenvej_varmepumpe.ino`
 
 ### Documentation
 - **README.md** - This file (overview and quick setup)
 - **DEPLOY.md** - Complete deployment guide
 - **WIRING.md** - Detailed wiring diagrams and hardware setup
+- **ESP32_SETUP.md** - ESP32-specific setup guide
 
 ### Deployment Tools
 - **deploy.sh** - Automated deployment script
@@ -290,20 +289,7 @@ const int RELAY_PIN = D1;  // Change to your pin
 ✅ **HTTPS Only** - Encrypted communication  
 ✅ **No Inbound Connections** - Arduino only polls outward  
 ✅ **Environment Variables** - Secrets stored securely  
-
-## 🎨 Multi-Relay Support
-
-Control multiple devices with one Arduino!
-
-**Web Interface:** `https://your-app.vercel.app/multi-relay.html`
-
-Features:
-- Control up to 4 relays independently
-- Individual schedules for each relay
-- Named relays (Heat Pump, Circulation Pump, etc.)
-- Visual status indicators
-
-See `arduino/syrenvej_multi_relay.ino` for the sketch.
+✅ **Password Protected** - Web interface requires login
 
 ## 📚 Documentation
 

@@ -87,7 +87,7 @@ Setup complete. Starting main loop...
 
 ## 🔌 Wiring for ESP32
 
-### Single Relay Setup
+### Relay Setup
 
 ```
 ESP32 Pin      →    Relay Module
@@ -99,52 +99,22 @@ GPIO5          →    IN
 * Use 5V if relay requires 5V, 3.3V if it's 3.3V compatible
 ```
 
-### Multi-Relay Setup (4 Relays)
-
-```
-ESP32 Pin      →    Relay Module
-────────────────────────────────
-GND            →    GND
-5V             →    VCC
-GPIO5          →    IN1 (Heat Pump)
-GPIO18         →    IN2 (Circulation Pump)
-GPIO19         →    IN3 (Spare 1)
-GPIO21         →    IN4 (Spare 2)
-```
-
 ---
 
-## 📊 Pin Assignments
+## 📊 Pin Assignment
 
-### Single Relay (`syrenvej_varmepumpe.ino`)
 | ESP32 Pin | Function |
 |-----------|----------|
 | GPIO5 | Relay control |
 
-### Multi-Relay (`syrenvej_multi_relay.ino`)
-| ESP32 Pin | Function |
-|-----------|----------|
-| GPIO5 | Heat Pump Relay |
-| GPIO18 | Circulation Pump |
-| GPIO19 | Spare Relay 1 |
-| GPIO21 | Spare Relay 2 |
-
 ---
 
-## 🎯 Which Sketch to Use?
+## 🎯 Arduino Sketch
 
-### Single Relay (Simple)
 **File:** `arduino/syrenvej_varmepumpe.ino`
 - Control 1 relay
 - One schedule
-- Simpler setup
-
-### Multi-Relay (Advanced)
-**File:** `arduino/syrenvej_multi_relay.ino`
-- Control 4 relays
-- 4 independent schedules
-- Named relays
-- Use web interface at: `/multi-relay.html`
+- Simple and reliable setup
 
 ---
 
@@ -275,19 +245,13 @@ const int RELAY_PIN = 23;  // Use GPIO23 instead of GPIO5
 
 ---
 
-## 📱 Web Interfaces
+## 📱 Web Interface
 
-### Single Relay
 **URL:** https://syrenvej-varmepumpe.vercel.app
 - Toggle relay on/off
 - Set schedule
 - View current state
-
-### Multi-Relay
-**URL:** https://syrenvej-varmepumpe.vercel.app/multi-relay.html
-- Control 4 relays independently
-- 4 separate schedules
-- Visual grid layout
+- Password protected
 
 **Login Password:** `syrenvej2025`
 

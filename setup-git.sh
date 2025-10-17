@@ -71,7 +71,7 @@ if [ -z "$(git log 2>/dev/null)" ]; then
     git add .
     git commit -m "Initial commit: Syrenvej6 Varmepumpe Controller
 
-- Web interface (single and multi-relay)
+- Web interface (password protected)
 - API endpoints with authentication
 - Arduino firmware (ESP8266/ESP32)
 - Complete documentation

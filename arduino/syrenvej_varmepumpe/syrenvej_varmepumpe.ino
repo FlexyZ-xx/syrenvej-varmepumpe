@@ -6,7 +6,7 @@
  * 
  * Hardware:
  * - ESP32
- * - Relay module connected to RELAY_PIN
+ * - Relay module connected to I2C address 0x30
  * 
  * Configuration:
  * - Update WIFI_SSID and WIFI_PASSWORD
@@ -18,10 +18,11 @@
 #include <EEPROM.h>
 #include <ArduinoJson.h>
 #include <time.h>
+#include <Relay-SOLDERED.h>
 
 // WiFi Configuration
-const char* WIFI_SSID = "YOUR_WIFI_SSID";
-const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
+const char* WIFI_SSID = "dezign";
+const char* WIFI_PASSWORD = "torvelink";
 
 // API Configuration
 const char* API_HOST = "https://syrenvej-varmepumpe.vercel.app";
@@ -29,8 +30,9 @@ const char* COMMAND_ENDPOINT = "/api/command.js";
 const char* STATUS_ENDPOINT = "/api/status.js";
 const char* API_KEY = "a3bad1660cef3fd1bb3e9573711dd36f3fa8c5a1dd61d1d0e3cb991e330b1fa4";
 
-// Hardware Configuration
-const int RELAY_PIN = 5;  // GPIO5 on ESP32
+
+// Relay Configuration
+CH_Relay Relay;
 
 // Polling interval (milliseconds)
 const unsigned long POLL_INTERVAL = 5000;  // Poll every 5 seconds
@@ -71,10 +73,9 @@ void setup() {
     Serial.println("\n\nSyrenvej6 Varmepumpe Controller");
     Serial.println("================================");
     
-    // Initialize hardware
-    pinMode(RELAY_PIN, OUTPUT);
-    digitalWrite(RELAY_PIN, LOW);
-    
+    //init relay
+    Relay.begin(0x30);
+
     // Initialize EEPROM
     EEPROM.begin(EEPROM_SIZE);
     
@@ -271,8 +272,7 @@ void checkSchedule() {
 
 void setRelay(bool state) {
     relayState = state;
-    digitalWrite(RELAY_PIN, state ? HIGH : LOW);
-    
+    Relay.relayControl(CHANNEL1_PIN, relayState ? HIGH : LOW);
     Serial.print("Relay turned ");
     Serial.println(state ? "ON" : "OFF");
 }
