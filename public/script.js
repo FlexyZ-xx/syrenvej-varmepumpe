@@ -382,28 +382,27 @@ function updateArduinoStatus(isConnected) {
     const statusText = document.getElementById('statusText');
     const lastSeenEl = document.getElementById('lastSeen');
     
-    if (isConnected && lastArduinoHeartbeat) {
+    // Check if we have recent heartbeat (within 10 seconds)
+    const hasRecentHeartbeat = lastArduinoHeartbeat && (Date.now() - lastArduinoHeartbeat) < 10000;
+    
+    if (hasRecentHeartbeat) {
+        // Connected - green
         statusDot.className = 'status-dot connected';
-        statusText.textContent = 'Relay Connected';
-        
-        const timeSince = getTimeSince(lastArduinoHeartbeat);
-        lastSeenEl.textContent = `Last seen: ${timeSince}`;
-    } else if (lastArduinoHeartbeat) {
-        const timeSinceMs = Date.now() - lastArduinoHeartbeat;
-        if (timeSinceMs < 15000) {
-            statusDot.className = 'status-dot waiting';
-            statusText.textContent = 'Relay Active';
-        } else {
-            statusDot.className = 'status-dot offline';
-            statusText.textContent = 'Relay Offline';
-        }
+        statusText.textContent = 'Connected';
         
         const timeSince = getTimeSince(lastArduinoHeartbeat);
         lastSeenEl.textContent = `Last seen: ${timeSince}`;
     } else {
-        statusDot.className = 'status-dot waiting';
-        statusText.textContent = 'Waiting for Relay...';
-        lastSeenEl.textContent = '';
+        // Not connected - red
+        statusDot.className = 'status-dot offline';
+        statusText.textContent = 'Not Connected';
+        
+        if (lastArduinoHeartbeat) {
+            const timeSince = getTimeSince(lastArduinoHeartbeat);
+            lastSeenEl.textContent = `Last seen: ${timeSince}`;
+        } else {
+            lastSeenEl.textContent = 'Waiting for first connection...';
+        }
     }
 }
 
