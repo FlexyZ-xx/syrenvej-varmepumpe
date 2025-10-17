@@ -51,7 +51,13 @@ export default async function handler(req, res) {
 
     if (req.method === 'GET') {
         // Web interface requests current state
-        return res.status(200).json(arduinoState);
+        // Include lastUpdate so UI can check if Arduino is still active
+        return res.status(200).json({
+            relayState: arduinoState.relayState,
+            schedule: arduinoState.schedule,
+            lastUpdate: arduinoState.lastUpdate,
+            isConnected: arduinoState.lastUpdate ? (Date.now() - arduinoState.lastUpdate) < 10000 : false
+        });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });

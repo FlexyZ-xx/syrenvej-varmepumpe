@@ -295,9 +295,11 @@ async function loadCurrentState() {
 
         const data = await response.json();
         
-        // Update heartbeat
-        lastArduinoHeartbeat = Date.now();
-        updateArduinoStatus(true);
+        // Update heartbeat from server's lastUpdate timestamp
+        if (data.lastUpdate) {
+            lastArduinoHeartbeat = data.lastUpdate;
+        }
+        updateArduinoStatus(data.isConnected || false);
         
         const toggle = document.getElementById('manualToggle');
         const arduinoState = data.relayState === 'on';
