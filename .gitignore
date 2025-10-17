@@ -1,0 +1,10 @@
+node_modules/
+.vercel/
+.env
+.env.local
+*.log
+.DS_Store
+deployment_info.txt
+arduino_config.txt
+backups/
+

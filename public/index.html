@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Syrenvej6 Varmepumpe Control</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>Syrenvej6 varmepumpe on/off</h1>
+            
+            <!-- Toggle Switch -->
+            <div class="toggle-container">
+                <label class="switch">
+                    <input type="checkbox" id="manualToggle">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <hr class="divider">
+
+            <!-- Schedule Section -->
+            <h2>Schedule</h2>
+            
+            <div id="currentSchedule" class="current-schedule">
+                <!-- Will be populated by JavaScript -->
+            </div>
+
+            <div class="form-group">
+                <label>Date:</label>
+                <div class="date-inputs">
+                    <select id="daySelect" class="select-input">
+                        <!-- Will be populated by JavaScript -->
+                    </select>
+                    <select id="monthSelect" class="select-input">
+                        <option value="1">Jan</option>
+                        <option value="2">Feb</option>
+                        <option value="3">Mar</option>
+                        <option value="4">Apr</option>
+                        <option value="5">May</option>
+                        <option value="6">Jun</option>
+                        <option value="7">Jul</option>
+                        <option value="8">Aug</option>
+                        <option value="9">Sep</option>
+                        <option value="10">Oct</option>
+                        <option value="11">Nov</option>
+                        <option value="12">Dec</option>
+                    </select>
+                    <select id="yearSelect" class="select-input">
+                        <!-- Will be populated by JavaScript -->
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Time:</label>
+                <div class="time-inputs">
+                    <select id="hourSelect" class="select-input">
+                        <!-- Will be populated by JavaScript -->
+                    </select>
+                    <select id="minuteSelect" class="select-input">
+                        <!-- Will be populated by JavaScript -->
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Action:</label>
+                <select id="actionSelect" class="select-input full-width">
+                    <option value="on">Turn ON</option>
+                    <option value="off">Turn OFF</option>
+                </select>
+            </div>
+
+            <div class="button-group">
+                <button id="saveScheduleBtn" class="btn btn-primary">Save Schedule</button>
+                <button id="clearScheduleBtn" class="btn btn-secondary">Clear Schedule</button>
+            </div>
+
+            <div id="statusMessage" class="status-message"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+
