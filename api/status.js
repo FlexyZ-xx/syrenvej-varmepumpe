@@ -56,7 +56,7 @@ export default async function handler(req, res) {
             relayState: arduinoState.relayState,
             schedule: arduinoState.schedule,
             lastUpdate: arduinoState.lastUpdate,
-            isConnected: arduinoState.lastUpdate ? (Date.now() - arduinoState.lastUpdate) < 10000 : false
+            isConnected: arduinoState.lastUpdate ? (Date.now() - arduinoState.lastUpdate) < 8000 : false
         });
     }
 

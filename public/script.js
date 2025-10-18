@@ -8,8 +8,8 @@ document.addEventListener('DOMContentLoaded', () => {
     loadCurrentState();
     setupEventListeners();
     
-    // Poll for updates every 2 seconds
-    setInterval(loadCurrentState, 2000);
+    // Poll for updates every 1 second (fast response)
+    setInterval(loadCurrentState, 1000);
     
     // Note: Status updates happen when loadCurrentState() polls the API
     // No need for separate interval since server determines connection status
