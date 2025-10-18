@@ -286,7 +286,7 @@ void checkSchedule() {
 
 void setRelay(bool state) {
     relayState = state;
-    Relay.relayControl(1, relayState ? HIGH : LOW); // Channel 1
+    Relay.relayControl(0, relayState ? HIGH : LOW); // Channel 0 (0-based indexing)
     Serial.print("Relay turned ");
     Serial.println(state ? "ON" : "OFF");
 }
