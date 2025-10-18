@@ -83,8 +83,13 @@ void setup() {
     // Load state from EEPROM
     loadState();
     
-    // Connect to WiFi
+    // Connect to WiFi - keep retrying until successful
     connectWiFi();
+    while (WiFi.status() != WL_CONNECTED) {
+        Serial.println("Retrying WiFi connection in 5 seconds...");
+        delay(5000);
+        connectWiFi();
+    }
     
     // Initialize time
     configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER);
