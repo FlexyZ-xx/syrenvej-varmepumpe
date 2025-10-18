@@ -60,6 +60,7 @@ Schedule currentSchedule;
 
 unsigned long lastPoll = 0;
 unsigned long lastStatusReport = 0;
+unsigned long lastImmediateReport = 0;  // Track immediate reports
 int consecutiveHttpErrors = 0;
 
 HTTPClient http;
@@ -241,6 +242,15 @@ void pollForCommands() {
 void reportStatus() {
     if (WiFi.status() != WL_CONNECTED) return;
     
+    // Throttle rapid successive calls to prevent HTTP errors
+    // Allow immediate reports max once per 2 seconds
+    unsigned long now = millis();
+    if (now - lastImmediateReport < 2000 && lastImmediateReport != 0) {
+        Serial.println("Throttling: Skipping report (too soon after last one)");
+        return;
+    }
+    lastImmediateReport = now;
+    
     String url = String(API_HOST) + STATUS_ENDPOINT;
     
     DynamicJsonDocument doc(1024);
@@ -263,6 +273,7 @@ void reportStatus() {
     serializeJson(doc, jsonString);
     
     http.begin(url);
+    http.setTimeout(10000);  // Increase timeout to 10 seconds
     http.addHeader("Content-Type", "application/json");
     http.addHeader("X-API-Key", API_KEY);
     
