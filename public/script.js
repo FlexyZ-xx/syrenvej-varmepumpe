@@ -112,7 +112,7 @@ function setupEventListeners() {
         
         await sendCommand({ type: 'manual', action: command });
         
-        // Timeout after 30 seconds if Relay doesn't respond
+        // Timeout after 2.5 minutes if Relay doesn't respond (accounts for 60s polling interval)
         setTimeout(() => {
             if (waitingForResponse) {
                 toggle.disabled = false;
@@ -123,7 +123,7 @@ function setupEventListeners() {
                 toggle.style.pointerEvents = 'auto';
                 hideWaitingState();
             }
-        }, 30000);
+        }, 150000);
     });
 
     // Save schedule
@@ -165,7 +165,7 @@ function setupEventListeners() {
 
         await sendCommand(schedule);
         
-        // Timeout after 30 seconds if Relay doesn't respond
+        // Timeout after 2.5 minutes if Relay doesn't respond (accounts for 60s polling interval)
         setTimeout(() => {
             if (waitingForSchedule) {
                 setScheduleControlsState(true);
@@ -173,7 +173,7 @@ function setupEventListeners() {
                 expectedSchedule = null;
                 hideWaitingState();
             }
-        }, 30000);
+        }, 150000);
     });
 
     // Clear schedule
@@ -190,14 +190,14 @@ function setupEventListeners() {
         
         await sendCommand({ type: 'clear_schedule' });
         
-        // Timeout after 30 seconds if Relay doesn't respond
+        // Timeout after 2.5 minutes if Relay doesn't respond (accounts for 60s polling interval)
         setTimeout(() => {
             if (waitingForSchedule) {
                 setScheduleControlsState(true);
                 waitingForSchedule = false;
                 hideWaitingState();
             }
-        }, 30000);
+        }, 150000);
     });
 }
 
