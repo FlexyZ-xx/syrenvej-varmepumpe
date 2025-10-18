@@ -60,6 +60,7 @@ Schedule currentSchedule;
 
 unsigned long lastPoll = 0;
 unsigned long lastStatusReport = 0;
+int consecutiveHttpErrors = 0;
 
 HTTPClient http;
 
@@ -161,6 +162,7 @@ void pollForCommands() {
     int httpCode = http.GET();
     
     if (httpCode == HTTP_CODE_OK) {
+        consecutiveHttpErrors = 0; // Reset error counter on success
         String payload = http.getString();
         
         DynamicJsonDocument doc(1024);
@@ -208,6 +210,20 @@ void pollForCommands() {
                 reportStatus();
             }
         }
+    } else if (httpCode < 0) {
+        // Negative HTTP codes indicate connection issues
+        consecutiveHttpErrors++;
+        Serial.print("HTTP error: ");
+        Serial.println(httpCode);
+        
+        // If we get multiple HTTP errors, force WiFi reconnection
+        if (consecutiveHttpErrors >= 3) {
+            Serial.println("Multiple HTTP errors detected. Reconnecting WiFi...");
+            WiFi.disconnect();
+            delay(1000);
+            connectWiFi();
+            consecutiveHttpErrors = 0;
+        }
     }
     
     http.end();
@@ -245,9 +261,20 @@ void reportStatus() {
     
     if (httpCode == HTTP_CODE_OK) {
         Serial.println("Status reported successfully");
+        consecutiveHttpErrors = 0; // Reset error counter on success
     } else {
         Serial.print("Failed to report status. HTTP code: ");
         Serial.println(httpCode);
+        consecutiveHttpErrors++;
+        
+        // If we get multiple HTTP errors, force WiFi reconnection
+        if (consecutiveHttpErrors >= 3) {
+            Serial.println("Multiple HTTP errors detected. Reconnecting WiFi...");
+            WiFi.disconnect();
+            delay(1000);
+            connectWiFi();
+            consecutiveHttpErrors = 0;
+        }
     }
     
     http.end();
