@@ -35,7 +35,7 @@ const char* API_KEY = "a3bad1660cef3fd1bb3e9573711dd36f3fa8c5a1dd61d1d0e3cb991e3
 CH_Relay Relay;
 
 // Polling interval (milliseconds)
-const unsigned long POLL_INTERVAL = 3000;  // Poll every 3 seconds
+const unsigned long POLL_INTERVAL = 60000;  // Poll every 1 minute (reduced traffic)
 const unsigned long STATUS_REPORT_INTERVAL = 60000;  // Report status every 1 minute (reduced traffic)
 
 // EEPROM addresses
