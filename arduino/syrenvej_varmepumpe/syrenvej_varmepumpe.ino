@@ -61,6 +61,7 @@ Schedule currentSchedule;
 unsigned long lastPoll = 0;
 unsigned long lastStatusReport = 0;
 unsigned long lastImmediateReport = 0;  // Track immediate reports
+unsigned long lastCountdownPrint = 0;   // Track countdown display
 int consecutiveHttpErrors = 0;
 
 HTTPClient http;
@@ -129,6 +130,16 @@ void loop() {
     if (now - lastStatusReport >= STATUS_REPORT_INTERVAL) {
         lastStatusReport = now;
         reportStatus();
+    }
+    
+    // Print countdown every 10 seconds
+    if (now - lastCountdownPrint >= 10000) {
+        lastCountdownPrint = now;
+        unsigned long timeUntilReport = STATUS_REPORT_INTERVAL - (now - lastStatusReport);
+        int secondsLeft = timeUntilReport / 1000;
+        Serial.print("Next status report in: ");
+        Serial.print(secondsLeft);
+        Serial.println(" seconds");
     }
     
     // Check if scheduled action needs to be executed
