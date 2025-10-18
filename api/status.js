@@ -52,12 +52,12 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
         // Web interface requests current state
         // Include lastUpdate so UI can check if Arduino is still active
-        // Connection timeout: 90 seconds (gives 30s buffer for 60s heartbeat interval)
+        // Connection timeout: 120 seconds (gives 60s buffer for 60s heartbeat interval)
         return res.status(200).json({
             relayState: arduinoState.relayState,
             schedule: arduinoState.schedule,
             lastUpdate: arduinoState.lastUpdate,
-            isConnected: arduinoState.lastUpdate ? (Date.now() - arduinoState.lastUpdate) < 90000 : false
+            isConnected: arduinoState.lastUpdate ? (Date.now() - arduinoState.lastUpdate) < 120000 : false
         });
     }
 
