@@ -85,10 +85,24 @@ void setup() {
     // Load state from EEPROM
     loadState();
     
-    // Connect to WiFi - keep retrying until successful
+    // Connect to WiFi - retry up to 3 times before rebooting
+    int wifiRetries = 0;
+    const int MAX_WIFI_RETRIES = 3;
+    
     connectWiFi();
     while (WiFi.status() != WL_CONNECTED) {
-        Serial.println("Retrying WiFi connection in 5 seconds...");
+        wifiRetries++;
+        
+        if (wifiRetries >= MAX_WIFI_RETRIES) {
+            Serial.println("Failed to connect to WiFi after 3 attempts.");
+            Serial.println("Rebooting in 5 seconds...");
+            delay(5000);
+            ESP.restart(); // Reboot the ESP32
+        }
+        
+        Serial.print("Retrying WiFi connection (attempt ");
+        Serial.print(wifiRetries + 1);
+        Serial.println("/3) in 5 seconds...");
         delay(5000);
         connectWiFi();
     }
