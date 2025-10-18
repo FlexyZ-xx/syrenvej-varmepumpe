@@ -90,12 +90,16 @@ function setupEventListeners() {
         // Double-check we're not waiting
         if (waitingForResponse) {
             e.preventDefault();
-            toggle.checked = expectedState;
+            toggle.checked = !expectedState; // Revert to current state
             return;
         }
         
         const newState = e.target.checked;
         const command = newState ? 'on' : 'off';
+        const currentState = !newState; // Current state is opposite of new
+        
+        // Revert toggle immediately - only changes when Arduino confirms
+        toggle.checked = currentState;
         
         // Set expected state and waiting flag IMMEDIATELY
         expectedState = newState;
