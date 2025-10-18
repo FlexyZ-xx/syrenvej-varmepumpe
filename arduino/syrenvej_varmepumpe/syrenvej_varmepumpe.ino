@@ -36,7 +36,7 @@ CH_Relay Relay;
 
 // Polling interval (milliseconds)
 const unsigned long POLL_INTERVAL = 3000;  // Poll every 3 seconds
-const unsigned long STATUS_REPORT_INTERVAL = 5000;  // Report status every 5 seconds
+const unsigned long STATUS_REPORT_INTERVAL = 60000;  // Report status every 1 minute (reduced traffic)
 
 // EEPROM addresses
 const int EEPROM_SIZE = 512;
@@ -101,6 +101,10 @@ void setup() {
     
     // Apply loaded relay state
     setRelay(relayState);
+    
+    // Send immediate heartbeat after startup
+    Serial.println("Sending initial heartbeat...");
+    reportStatus();
     
     Serial.println("Setup complete. Starting main loop...\n");
 }
