@@ -178,6 +178,9 @@ void pollForCommands() {
                 setRelay(newState);
                 saveRelayState();
                 
+                // Send immediate heartbeat after relay change
+                reportStatus();
+                
             } else if (strcmp(type, "schedule") == 0) {
                 Serial.println("Schedule command received");
                 
@@ -193,10 +196,16 @@ void pollForCommands() {
                 saveSchedule();
                 printSchedule();
                 
+                // Send immediate heartbeat after schedule change
+                reportStatus();
+                
             } else if (strcmp(type, "clear_schedule") == 0) {
                 Serial.println("Clear schedule command received");
                 currentSchedule.active = false;
                 saveSchedule();
+                
+                // Send immediate heartbeat after clearing schedule
+                reportStatus();
             }
         }
     }
@@ -268,13 +277,16 @@ void checkSchedule() {
         currentSchedule.executed = false;
         saveSchedule();
         
+        // Send immediate heartbeat after scheduled execution
+        reportStatus();
+        
         Serial.println("Schedule executed and cleared");
     }
 }
 
 void setRelay(bool state) {
     relayState = state;
-    Relay.relayControl(CHANNEL1_PIN, relayState ? HIGH : LOW);
+    Relay.relayControl(1, relayState ? HIGH : LOW); // Channel 1
     Serial.print("Relay turned ");
     Serial.println(state ? "ON" : "OFF");
 }
