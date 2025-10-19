@@ -86,6 +86,11 @@ void setup() {
     // Load state from EEPROM
     loadState();
     
+    // Apply loaded relay state IMMEDIATELY after loading from EEPROM
+    // This ensures relay is in correct state even before WiFi connects
+    Serial.println("Restoring relay to saved state...");
+    setRelay(relayState);
+    
     // Connect to WiFi - retry up to 3 times before rebooting
     int wifiRetries = 0;
     const int MAX_WIFI_RETRIES = 3;
@@ -115,9 +120,6 @@ void setup() {
         delay(100);
     }
     Serial.println("Time synchronized!");
-    
-    // Apply loaded relay state
-    setRelay(relayState);
     
     // Send immediate heartbeat after startup
     Serial.println("Sending initial heartbeat...");
