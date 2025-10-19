@@ -121,8 +121,9 @@ void setup() {
     }
     Serial.println("Time synchronized!");
     
-    // Send immediate heartbeat after startup
-    Serial.println("Sending initial heartbeat...");
+    // Send immediate heartbeat after startup with restored relay state
+    // This ensures UI shows correct state immediately after reboot
+    Serial.println("Sending initial heartbeat with restored state...");
     reportStatus();
     
     Serial.println("Setup complete. Starting main loop...\n");
