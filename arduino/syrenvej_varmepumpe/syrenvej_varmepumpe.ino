@@ -63,6 +63,7 @@ unsigned long lastStatusReport = 0;
 unsigned long lastImmediateReport = 0;  // Track immediate reports
 unsigned long lastCountdownPrint = 0;   // Track countdown display
 int consecutiveHttpErrors = 0;
+int consecutiveWifiFailures = 0;        // Track WiFi reconnection failures
 
 HTTPClient http;
 
@@ -130,8 +131,25 @@ void loop() {
     
     // Check WiFi connection
     if (WiFi.status() != WL_CONNECTED) {
-        Serial.println("WiFi disconnected. Reconnecting...");
+        consecutiveWifiFailures++;
+        Serial.print("WiFi disconnected. Reconnecting (attempt ");
+        Serial.print(consecutiveWifiFailures);
+        Serial.println("/3)...");
+        
+        WiFi.disconnect();
+        delay(1000);
         connectWiFi();
+        
+        // If still not connected after 3 attempts, reboot
+        if (WiFi.status() != WL_CONNECTED && consecutiveWifiFailures >= 3) {
+            Serial.println("Failed to reconnect WiFi after 3 attempts.");
+            Serial.println("Rebooting in 5 seconds...");
+            delay(5000);
+            ESP.restart();
+        }
+    } else {
+        // Reset counter when connected
+        consecutiveWifiFailures = 0;
     }
     
     // Poll for commands
@@ -257,6 +275,15 @@ void pollForCommands() {
             WiFi.disconnect();
             delay(1000);
             connectWiFi();
+            
+            // If WiFi reconnection failed, reboot
+            if (WiFi.status() != WL_CONNECTED) {
+                Serial.println("WiFi reconnection failed after HTTP errors.");
+                Serial.println("Rebooting in 5 seconds...");
+                delay(5000);
+                ESP.restart();
+            }
+            
             consecutiveHttpErrors = 0;
         }
     }
@@ -318,6 +345,15 @@ void reportStatus() {
             WiFi.disconnect();
             delay(1000);
             connectWiFi();
+            
+            // If WiFi reconnection failed, reboot
+            if (WiFi.status() != WL_CONNECTED) {
+                Serial.println("WiFi reconnection failed after HTTP errors.");
+                Serial.println("Rebooting in 5 seconds...");
+                delay(5000);
+                ESP.restart();
+            }
+            
             consecutiveHttpErrors = 0;
         }
     }
