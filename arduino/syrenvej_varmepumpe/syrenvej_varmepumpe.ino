@@ -19,6 +19,7 @@
 #include <ArduinoJson.h>
 #include <time.h>
 #include <Relay-SOLDERED.h>
+#include <WS2812-SOLDERED.h>
 #include <esp_task_wdt.h>  // Watchdog timer
 
 // WiFi Configuration
@@ -31,6 +32,8 @@ const char* COMMAND_ENDPOINT = "/api/command.js";
 const char* STATUS_ENDPOINT = "/api/status.js";
 const char* API_KEY = "a3bad1660cef3fd1bb3e9573711dd36f3fa8c5a1dd61d1d0e3cb991e330b1fa4";
 
+// LED Configuration
+WS2812 pixels(1, LEDWS_BUILTIN);
 
 // Relay Configuration
 CH_Relay Relay;
@@ -69,6 +72,12 @@ unsigned long lastCountdownPrint = 0;   // Track countdown display
 int consecutiveHttpErrors = 0;
 int consecutiveWifiFailures = 0;        // Track WiFi reconnection failures
 
+// LED fading variables
+int ledBrightness = 0;
+int ledFadeDirection = 1;  // 1 for increasing, -1 for decreasing
+unsigned long lastLedUpdate = 0;
+const int LED_FADE_SPEED = 10;  // Milliseconds between brightness changes
+
 HTTPClient http;
 
 // NTP Configuration
@@ -76,7 +85,66 @@ const char* NTP_SERVER = "pool.ntp.org";
 const long GMT_OFFSET_SEC = 3600;  // Adjust for your timezone (1 hour = 3600 seconds)
 const int DAYLIGHT_OFFSET_SEC = 3600;  // Adjust for daylight saving
 
+// ============================================
+// LED Control Functions
+// ============================================
+
+void initLED() {
+    pixels.begin();
+    pixels.clear();
+    pixels.show();
+}
+
+void setLED(uint8_t r, uint8_t g, uint8_t b) {
+    pixels.setPixelColor(0, pixels.Color(r, g, b));
+    pixels.show();
+}
+
+void setLEDPurple() {
+    setLED(80, 0, 80);
+}
+
+void setLEDGreen() {
+    setLED(0, 80, 0);
+}
+
+void setLEDBlue() {
+    setLED(0, 0, 80);
+}
+
+void updateFadingLED() {
+    unsigned long now = millis();
+    
+    // Update LED brightness at specified speed
+    if (now - lastLedUpdate >= LED_FADE_SPEED) {
+        lastLedUpdate = now;
+        
+        // Update brightness
+        ledBrightness += ledFadeDirection;
+        
+        // Reverse direction at limits
+        if (ledBrightness >= 80) {
+            ledBrightness = 80;
+            ledFadeDirection = -1;
+        } else if (ledBrightness <= 0) {
+            ledBrightness = 0;
+            ledFadeDirection = 1;
+        }
+        
+        // Set LED color (breathing blue effect)
+        pixels.setPixelColor(0, pixels.Color(0, 0, ledBrightness));
+        pixels.show();
+    }
+}
+
+// ============================================
+// Setup
+// ============================================
+
 void setup() {
+    initLED();
+    setLEDPurple();  // Purple during startup
+
     Serial.begin(115200);
     Serial.println("\n\nSyrenvej6 Varmepumpe Controller");
     Serial.println("================================");
@@ -125,6 +193,8 @@ void setup() {
         delay(5000);
         connectWiFi();
     }
+
+    setLEDGreen();  // Green after WiFi connected
     
     // Initialize time
     configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER);
@@ -140,6 +210,8 @@ void setup() {
     reportStatus();
     
     Serial.println("Setup complete. Starting main loop...\n");
+
+    setLEDBlue();  // Blue when setup complete, will start fading in loop
 }
 
 void loop() {
@@ -147,6 +219,9 @@ void loop() {
     
     // Reset watchdog timer - proves loop is running
     esp_task_wdt_reset();
+    
+    // Update fading LED effect (breathing blue)
+    updateFadingLED();
     
     // Check WiFi connection
     if (WiFi.status() != WL_CONNECTED) {
