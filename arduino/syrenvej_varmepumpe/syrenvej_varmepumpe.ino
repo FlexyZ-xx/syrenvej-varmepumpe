@@ -275,7 +275,8 @@ void loop() {
     // Check if scheduled action needs to be executed
     checkSchedule();
     
-    delay(100);
+    // Small delay to prevent CPU hogging (1ms allows fast LED updates)
+    delay(1);
 }
 
 void connectWiFi() {
