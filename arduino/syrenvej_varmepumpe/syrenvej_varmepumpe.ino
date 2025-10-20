@@ -76,7 +76,7 @@ int consecutiveWifiFailures = 0;        // Track WiFi reconnection failures
 int ledBrightness = 0;
 int ledFadeDirection = 1;  // 1 for increasing, -1 for decreasing
 unsigned long lastLedUpdate = 0;
-const int LED_FADE_SPEED = 10;  // Milliseconds between brightness changes
+const int LED_FADE_SPEED = 5;  // Milliseconds between brightness changes (faster)
 
 HTTPClient http;
 
