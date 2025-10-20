@@ -19,6 +19,7 @@
 #include <ArduinoJson.h>
 #include <time.h>
 #include <Relay-SOLDERED.h>
+#include <esp_task_wdt.h>  // Watchdog timer
 
 // WiFi Configuration
 const char* WIFI_SSID = "dezign";
@@ -37,6 +38,9 @@ CH_Relay Relay;
 // Polling interval (milliseconds)
 const unsigned long POLL_INTERVAL = 60000;  // Poll every 1 minute (reduced traffic)
 const unsigned long STATUS_REPORT_INTERVAL = 60000;  // Report status every 1 minute (reduced traffic)
+
+// Watchdog timer configuration
+const int WDT_TIMEOUT = 120;  // Watchdog timeout in seconds (2 minutes)
 
 // EEPROM addresses
 const int EEPROM_SIZE = 512;
@@ -76,6 +80,15 @@ void setup() {
     Serial.begin(115200);
     Serial.println("\n\nSyrenvej6 Varmepumpe Controller");
     Serial.println("================================");
+    
+    // Configure watchdog timer (2 minutes timeout)
+    // If loop() doesn't run or gets stuck, Arduino will auto-reboot
+    Serial.print("Configuring watchdog timer (");
+    Serial.print(WDT_TIMEOUT);
+    Serial.println(" seconds timeout)...");
+    esp_task_wdt_init(WDT_TIMEOUT, true);  // Enable panic so ESP32 restarts
+    esp_task_wdt_add(NULL);  // Add current thread to watchdog
+    Serial.println("Watchdog timer enabled!");
     
     //init relay
     Relay.begin(0x30);
@@ -131,6 +144,9 @@ void setup() {
 
 void loop() {
     unsigned long now = millis();
+    
+    // Reset watchdog timer - proves loop is running
+    esp_task_wdt_reset();
     
     // Check WiFi connection
     if (WiFi.status() != WL_CONNECTED) {
