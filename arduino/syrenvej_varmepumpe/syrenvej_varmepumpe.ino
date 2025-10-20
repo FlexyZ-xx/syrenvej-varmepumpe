@@ -200,6 +200,10 @@ void setup() {
 
     setLEDGreen();  // Green after WiFi connected
     
+    // Wait for network stack to fully initialize after WiFi connection
+    Serial.println("Waiting for network stack to initialize...");
+    delay(2000);
+    
     // Initialize time
     configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER);
     Serial.println("Waiting for time sync...");
@@ -211,7 +215,28 @@ void setup() {
     // Send immediate heartbeat after startup with restored relay state
     // This ensures UI shows correct state immediately after reboot
     Serial.println("Sending initial heartbeat with restored state...");
-    reportStatus();
+    
+    // Retry heartbeat up to 3 times if it fails
+    int heartbeatRetries = 0;
+    while (heartbeatRetries < 3) {
+        reportStatus();
+        delay(2000);  // Wait to see if it succeeded
+        
+        if (consecutiveHttpErrors == 0) {
+            Serial.println("Initial heartbeat sent successfully!");
+            break;  // Success!
+        } else {
+            heartbeatRetries++;
+            if (heartbeatRetries < 3) {
+                Serial.print("Retrying initial heartbeat (attempt ");
+                Serial.print(heartbeatRetries + 1);
+                Serial.println("/3)...");
+                delay(3000);
+            } else {
+                Serial.println("Initial heartbeat failed after 3 attempts. Will retry in main loop.");
+            }
+        }
+    }
     
     Serial.println("Setup complete. Starting main loop...\n");
 
