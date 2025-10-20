@@ -12,13 +12,11 @@
  * - Update WIFI_SSID and WIFI_PASSWORD
  * - All other settings are pre-configured for production
  * 
- * LED Status Codes:
+ * LED Status:
  * - PURPLE (solid): Starting up
  * - YELLOW (solid): WiFi connected, waiting for time sync
- * - GREEN (solid): Normal operation - everything OK
- * - RED (fading): WiFi connection error
- * - YELLOW (fading): HTTP/API error
- * - BLUE (fading): Other errors (reserved)
+ * - GREEN (blinking): Normal operation - loop is running
+ *   (toggles on/off every 1 second to show device is alive)
  */
 
 #include <WiFi.h>
@@ -80,18 +78,10 @@ unsigned long lastCountdownPrint = 0;   // Track countdown display
 int consecutiveHttpErrors = 0;
 int consecutiveWifiFailures = 0;        // Track WiFi reconnection failures
 
-// LED fading variables
-int ledBrightness = 0;
-int ledFadeDirection = 1;  // 1 for increasing, -1 for decreasing
-unsigned long lastLedUpdate = 0;
-bool isInErrorState = false;  // Track if we're showing error LED
-enum ErrorType { NO_ERROR, WIFI_ERROR, HTTP_ERROR };
-ErrorType currentErrorType = NO_ERROR;
-
-// LED fade speed configuration
-// Lower value = faster breathing. Range: 1-20ms recommended
-// 1ms = very fast, 5ms = medium, 10ms = slow
-const int LED_FADE_SPEED = 2;  // Milliseconds between brightness changes
+// LED toggle variables
+bool ledState = false;  // Track LED on/off state
+unsigned long lastLedToggle = 0;
+const unsigned long LED_TOGGLE_INTERVAL = 1000;  // Toggle every 1 second
 
 HTTPClient http;
 
@@ -135,39 +125,22 @@ void setLEDBlue() {
     setLED(0, 0, 80);
 }
 
-void updateFadingLED(uint8_t r, uint8_t g, uint8_t b) {
+void toggleLED() {
     unsigned long now = millis();
     
-    // Update LED brightness at specified speed
-    if (now - lastLedUpdate >= LED_FADE_SPEED) {
-        lastLedUpdate = now;
+    // Toggle LED every second to show loop is running
+    if (now - lastLedToggle >= LED_TOGGLE_INTERVAL) {
+        lastLedToggle = now;
+        ledState = !ledState;
         
-        // Update brightness
-        ledBrightness += ledFadeDirection;
-        
-        // Reverse direction at limits
-        if (ledBrightness >= 80) {
-            ledBrightness = 80;
-            ledFadeDirection = -1;
-        } else if (ledBrightness <= 0) {
-            ledBrightness = 0;
-            ledFadeDirection = 1;
+        if (ledState) {
+            setLEDGreen();  // On = green
+        } else {
+            pixels.clear();  // Off
+            pixels.show();
         }
-        
-        // Calculate fading color
-        uint8_t fadeR = (r * ledBrightness) / 80;
-        uint8_t fadeG = (g * ledBrightness) / 80;
-        uint8_t fadeB = (b * ledBrightness) / 80;
-        
-        pixels.setPixelColor(0, pixels.Color(fadeR, fadeG, fadeB));
-        pixels.show();
     }
 }
-
-// Convenience functions for fading different colors
-void fadeLEDRed() { updateFadingLED(80, 0, 0); }      // WiFi errors
-void fadeLEDYellow() { updateFadingLED(80, 80, 0); }  // HTTP errors
-void fadeLEDBlue() { updateFadingLED(0, 0, 80); }     // Other errors
 
 // ============================================
 // Setup
@@ -270,8 +243,7 @@ void setup() {
     
     Serial.println("Setup complete. Starting main loop...\n");
     
-    // LED stays green during normal operation
-    // LED will fade with error colors if problems occur
+    // LED will toggle to show loop is running
 }
 
 void loop() {
@@ -280,14 +252,8 @@ void loop() {
     // Reset watchdog timer - proves loop is running
     esp_task_wdt_reset();
     
-    // Update LED based on current error state
-    if (isInErrorState) {
-        if (currentErrorType == WIFI_ERROR) {
-            fadeLEDRed();
-        } else if (currentErrorType == HTTP_ERROR) {
-            fadeLEDYellow();
-        }
-    }
+    // Toggle LED to show loop is running
+    toggleLED();
     
     // Check WiFi connection
     if (WiFi.status() != WL_CONNECTED) {
@@ -295,10 +261,6 @@ void loop() {
         Serial.print("WiFi disconnected. Reconnecting (attempt ");
         Serial.print(consecutiveWifiFailures);
         Serial.println("/3)...");
-        
-        // Set error state for fading red LED
-        isInErrorState = true;
-        currentErrorType = WIFI_ERROR;
         
         WiFi.disconnect();
         delay(1000);
@@ -315,9 +277,6 @@ void loop() {
         // Reset counter when connected
         if (consecutiveWifiFailures > 0) {
             Serial.println("WiFi reconnected successfully!");
-            isInErrorState = false;
-            currentErrorType = NO_ERROR;
-            setLEDGreen();  // Back to green when WiFi recovers
         }
         consecutiveWifiFailures = 0;
     }
@@ -440,10 +399,6 @@ void pollForCommands() {
         Serial.print("HTTP error: ");
         Serial.println(httpCode);
         
-        // Set error state for fading yellow LED
-        isInErrorState = true;
-        currentErrorType = HTTP_ERROR;
-        
         // If we get multiple HTTP errors, force WiFi reconnection
         if (consecutiveHttpErrors >= 3) {
             Serial.println("Multiple HTTP errors detected. Reconnecting WiFi...");
@@ -457,21 +412,14 @@ void pollForCommands() {
                 Serial.println("Rebooting in 5 seconds...");
                 delay(5000);
                 ESP.restart();
-            } else {
-                isInErrorState = false;
-                currentErrorType = NO_ERROR;
-                setLEDGreen();  // Back to green after recovery
             }
             
             consecutiveHttpErrors = 0;
         }
     } else {
-        // Reset error counter and ensure LED is green for any successful response
+        // Reset error counter for any successful response
         if (consecutiveHttpErrors > 0) {
             consecutiveHttpErrors = 0;
-            isInErrorState = false;
-            currentErrorType = NO_ERROR;
-            setLEDGreen();
         }
     }
     
@@ -521,21 +469,14 @@ void reportStatus() {
     if (httpCode == HTTP_CODE_OK) {
         Serial.println("Status reported successfully");
         
-        // Reset error counter and ensure LED is green on success
+        // Reset error counter on success
         if (consecutiveHttpErrors > 0) {
             consecutiveHttpErrors = 0;
-            isInErrorState = false;
-            currentErrorType = NO_ERROR;
-            setLEDGreen();
         }
     } else {
         Serial.print("Failed to report status. HTTP code: ");
         Serial.println(httpCode);
         consecutiveHttpErrors++;
-        
-        // Set error state for fading yellow LED
-        isInErrorState = true;
-        currentErrorType = HTTP_ERROR;
         
         // If we get multiple HTTP errors, force WiFi reconnection
         if (consecutiveHttpErrors >= 3) {
@@ -550,10 +491,6 @@ void reportStatus() {
                 Serial.println("Rebooting in 5 seconds...");
                 delay(5000);
                 ESP.restart();
-            } else {
-                isInErrorState = false;
-                currentErrorType = NO_ERROR;
-                setLEDGreen();  // Back to green after recovery
             }
             
             consecutiveHttpErrors = 0;
