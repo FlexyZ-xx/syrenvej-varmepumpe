@@ -1,12 +1,15 @@
-# Vercel KV Setup Instructions
+# Vercel KV Setup Instructions (Optional but Recommended)
 
-## Problem Solved
+## Current Status: App Works Without KV
 
-The UI was showing "Waiting for first connection..." even though the Arduino successfully reported status. This was caused by Vercel's serverless functions being **stateless** - in-memory variables reset on each cold start.
+The app now uses a **hybrid storage approach**:
+- ✅ **Works immediately** with in-memory storage (no setup required)
+- ⚠️ **Serverless state loss** may occur during cold starts
+- ✅ **Automatically upgrades** to persistent storage when KV is added
 
-## Solution: Vercel KV Storage
+## Why Add Vercel KV?
 
-We've implemented **Vercel KV** (persistent key-value storage) to maintain state across all function invocations.
+Without KV, the UI may occasionally show "Waiting for first connection..." due to serverless cold starts losing in-memory state. KV solves this by persisting state across all function invocations.
 
 ## Setup Steps
 
