@@ -119,13 +119,10 @@ function setupEventListeners() {
         // Timeout after 2.5 minutes if Relay doesn't respond (accounts for 60s polling interval)
         setTimeout(() => {
             if (waitingForResponse) {
-                toggle.disabled = false;
                 waitingForResponse = false;
                 expectedState = null;
-                toggle.style.opacity = '1';
-                toggle.style.cursor = 'pointer';
                 toggle.style.pointerEvents = 'auto';
-                hideWaitingState();
+                hideWaitingState();  // This will call updateArduinoStatus to re-enable all controls
             }
         }, 150000);
     });
@@ -291,16 +288,13 @@ async function loadCurrentState() {
         // If waiting for confirmation, check if Relay confirmed the expected state
         if (waitingForResponse && expectedState !== null) {
             if (arduinoState === expectedState) {
-                // Relay confirmed! Re-enable toggle
+                // Relay confirmed! Update toggle and clear waiting state
                 toggle.checked = arduinoState;
-                toggle.disabled = false;
+                toggle.style.pointerEvents = 'auto';
                 waitingForResponse = false;
                 expectedState = null;
-                toggle.style.opacity = '1';
-                toggle.style.cursor = 'pointer';
-                toggle.style.pointerEvents = 'auto';
                 
-                // Hide waiting state
+                // Hide waiting state (this will call updateArduinoStatus to re-enable all controls)
                 hideWaitingState();
             }
             // If state doesn't match, keep waiting
