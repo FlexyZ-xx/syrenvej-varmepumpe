@@ -303,9 +303,16 @@ async function loadCurrentState() {
             toggle.checked = arduinoState;
         }
 
-        // Update schedule display and check if Relay confirmed
+        // First, update schedule display if we have schedule data in the response
+        if (data.hasOwnProperty('schedule')) {
+            currentSchedule = data.schedule;
+            updateScheduleDisplay(currentSchedule);
+        }
+        // If schedule is not in response, keep showing current schedule
+        
+        // Then check if Relay confirmed the schedule change
         if (waitingForSchedule) {
-            if (schedulesMatch(data.schedule, expectedSchedule)) {
+            if (schedulesMatch(currentSchedule, expectedSchedule)) {
                 // Relay confirmed! Clear waiting state
                 waitingForSchedule = false;
                 expectedSchedule = null;
@@ -313,13 +320,6 @@ async function loadCurrentState() {
             }
             // If schedule doesn't match, keep waiting
         }
-        
-        // Only update schedule display if we have schedule data in the response
-        if (data.hasOwnProperty('schedule')) {
-            currentSchedule = data.schedule;
-            updateScheduleDisplay(currentSchedule);
-        }
-        // If schedule is not in response, keep showing current schedule
     } catch (error) {
         console.error('Error loading state:', error);
     }
