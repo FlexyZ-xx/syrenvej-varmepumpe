@@ -434,12 +434,28 @@ function updateArduinoStatus(isConnected) {
     const minuteSelect = document.getElementById('minuteSelect');
     const actionSelect = document.getElementById('actionSelect');
     
+    // Always show time since last heartbeat regardless of connection status
+    if (lastArduinoHeartbeat) {
+        const secondsSince = Math.floor((Date.now() - lastArduinoHeartbeat) / 1000);
+        if (secondsSince < 5) {
+            lastSeenEl.textContent = 'Active now';
+        } else if (secondsSince < 60) {
+            lastSeenEl.textContent = `${secondsSince}s ago`;
+        } else if (secondsSince < 120) {
+            lastSeenEl.textContent = `1 min ago`;
+        } else {
+            const minutes = Math.floor(secondsSince / 60);
+            lastSeenEl.textContent = `${minutes} min ago`;
+        }
+    } else {
+        lastSeenEl.textContent = 'Waiting for connection...';
+    }
+    
     // Use server's isConnected value (it knows best when Arduino last reported)
     if (isConnected) {
         // Connected - green
         statusDot.className = 'status-dot connected';
         statusText.textContent = 'Connected';
-        lastSeenEl.textContent = 'Active';
         
         // Enable controls only if not waiting for response
         if (!waitingForResponse) {
@@ -476,19 +492,6 @@ function updateArduinoStatus(isConnected) {
         hourSelect.disabled = true;
         minuteSelect.disabled = true;
         actionSelect.disabled = true;
-        
-        if (lastArduinoHeartbeat) {
-            // Calculate time since last update using client time as reference
-            const secondsSince = Math.floor((Date.now() - lastArduinoHeartbeat) / 1000);
-            if (secondsSince < 60) {
-                lastSeenEl.textContent = `Last seen: ${secondsSince} seconds ago`;
-            } else {
-                const minutes = Math.floor(secondsSince / 60);
-                lastSeenEl.textContent = `Last seen: ${minutes} minute${minutes > 1 ? 's' : ''} ago`;
-            }
-        } else {
-            lastSeenEl.textContent = 'Waiting for first connection...';
-        }
     }
 }
 
