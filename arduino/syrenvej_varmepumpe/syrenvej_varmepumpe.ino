@@ -17,6 +17,8 @@
  * - YELLOW (solid): WiFi connected, waiting for time sync
  * - GREEN (blinking): Normal operation - loop is running
  *   (toggles on/off every 1 second to show device is alive)
+ * - RED (solid): Error/retry state - WiFi or HTTP errors detected
+ *   (shows during WiFi reconnection attempts or HTTP error recovery)
  */
 
 #include <WiFi.h>
@@ -185,6 +187,9 @@ void setup() {
     while (WiFi.status() != WL_CONNECTED) {
         wifiRetries++;
         
+        // Turn LED red during WiFi retry
+        setLEDRed();
+        
         if (wifiRetries >= MAX_WIFI_RETRIES) {
             Serial.println("Failed to connect to WiFi after 3 attempts.");
             Serial.println("Rebooting in 5 seconds...");
@@ -230,6 +235,10 @@ void setup() {
             break;  // Success!
         } else {
             heartbeatRetries++;
+            
+            // Turn LED red during heartbeat retry
+            setLEDRed();
+            
             if (heartbeatRetries < 3) {
                 Serial.print("Retrying initial heartbeat (attempt ");
                 Serial.print(heartbeatRetries + 1);
@@ -258,6 +267,10 @@ void loop() {
     // Check WiFi connection
     if (WiFi.status() != WL_CONNECTED) {
         consecutiveWifiFailures++;
+        
+        // Turn LED red during WiFi error
+        setLEDRed();
+        
         Serial.print("WiFi disconnected. Reconnecting (attempt ");
         Serial.print(consecutiveWifiFailures);
         Serial.println("/3)...");
@@ -401,6 +414,9 @@ void pollForCommands() {
         
         // If we get multiple HTTP errors, force WiFi reconnection
         if (consecutiveHttpErrors >= 3) {
+            // Turn LED red during HTTP error recovery
+            setLEDRed();
+            
             Serial.println("Multiple HTTP errors detected. Reconnecting WiFi...");
             WiFi.disconnect();
             delay(1000);
@@ -480,6 +496,9 @@ void reportStatus() {
         
         // If we get multiple HTTP errors, force WiFi reconnection
         if (consecutiveHttpErrors >= 3) {
+            // Turn LED red during HTTP error recovery
+            setLEDRed();
+            
             Serial.println("Multiple HTTP errors detected. Reconnecting WiFi...");
             WiFi.disconnect();
             delay(1000);
