@@ -162,8 +162,7 @@ function setupEventListeners() {
             executed: false
         };
         
-        // Disable all schedule controls and show loading
-        setScheduleControlsState(false);
+        // Set waiting state and show loading
         waitingForSchedule = true;
         showWaitingState('Waiting for relay confirmation...');
 
@@ -172,7 +171,6 @@ function setupEventListeners() {
         // Timeout after 2.5 minutes if Relay doesn't respond (accounts for 60s polling interval)
         setTimeout(() => {
             if (waitingForSchedule) {
-                setScheduleControlsState(true);
                 waitingForSchedule = false;
                 expectedSchedule = null;
                 hideWaitingState();
@@ -187,8 +185,7 @@ function setupEventListeners() {
         // Store expected state (no schedule)
         expectedSchedule = null;
         
-        // Disable all schedule controls and show loading
-        setScheduleControlsState(false);
+        // Set waiting state and show loading
         waitingForSchedule = true;
         showWaitingState('Waiting for relay confirmation...');
         
@@ -197,25 +194,10 @@ function setupEventListeners() {
         // Timeout after 2.5 minutes if Relay doesn't respond (accounts for 60s polling interval)
         setTimeout(() => {
             if (waitingForSchedule) {
-                setScheduleControlsState(true);
                 waitingForSchedule = false;
                 hideWaitingState();
             }
         }, 150000);
-    });
-}
-
-function setScheduleControlsState(enabled) {
-    const controls = [
-        'daySelect', 'monthSelect', 'yearSelect', 
-        'hourSelect', 'minuteSelect', 'actionSelect',
-        'saveScheduleBtn', 'clearScheduleBtn'
-    ];
-    
-    controls.forEach(id => {
-        const el = document.getElementById(id);
-        el.disabled = !enabled;
-        el.style.opacity = enabled ? '1' : '0.5';
     });
 }
 
@@ -267,23 +249,16 @@ async function sendCommand(command) {
         console.error('Error sending command:', error);
         showStatus('Failed to send command', 'error');
         
-        // On error, re-enable controls
-        const toggle = document.getElementById('manualToggle');
-        toggle.disabled = false;
+        // Reset waiting flags
         waitingForResponse = false;
-        toggle.style.opacity = '1';
-        toggle.style.cursor = 'pointer';
+        waitingForSchedule = false;
+        expectedSchedule = null;
+        
+        const toggle = document.getElementById('manualToggle');
         toggle.style.pointerEvents = 'auto';
         
-        // Hide waiting state
+        // Hide waiting state (this will call updateArduinoStatus to re-enable all controls)
         hideWaitingState();
-        
-        // Re-enable schedule controls if schedule command failed
-        if (waitingForSchedule) {
-            setScheduleControlsState(true);
-            waitingForSchedule = false;
-            expectedSchedule = null;
-        }
     }
 }
 
@@ -331,11 +306,10 @@ async function loadCurrentState() {
         // Update schedule display and check if Relay confirmed
         if (waitingForSchedule) {
             if (schedulesMatch(data.schedule, expectedSchedule)) {
-                // Relay confirmed! Re-enable controls
-                setScheduleControlsState(true);
+                // Relay confirmed! Clear waiting state
                 waitingForSchedule = false;
                 expectedSchedule = null;
-                hideWaitingState();
+                hideWaitingState();  // This will call updateArduinoStatus to re-enable all controls
             }
             // If schedule doesn't match, keep waiting
         }
@@ -411,11 +385,6 @@ function updateScheduleDisplay(schedule) {
 }
 
 function updateArduinoStatus(isConnected) {
-    // Don't update status while showing waiting state
-    if (isShowingWaitingState) {
-        return;
-    }
-    
     // Store the connection state for later restoration
     lastConnectionState = isConnected;
     
@@ -434,52 +403,56 @@ function updateArduinoStatus(isConnected) {
     const minuteSelect = document.getElementById('minuteSelect');
     const actionSelect = document.getElementById('actionSelect');
     
-    // Always show time since last heartbeat regardless of connection status
-    if (lastArduinoHeartbeat) {
-        const secondsSince = Math.floor((Date.now() - lastArduinoHeartbeat) / 1000);
-        if (secondsSince < 5) {
-            lastSeenEl.textContent = 'Active now';
-        } else if (secondsSince < 60) {
-            lastSeenEl.textContent = `${secondsSince}s ago`;
-        } else if (secondsSince < 120) {
-            lastSeenEl.textContent = `1 min ago`;
+    // Update status display ONLY if not showing waiting state
+    if (!isShowingWaitingState) {
+        // Always show time since last heartbeat regardless of connection status
+        if (lastArduinoHeartbeat) {
+            const secondsSince = Math.floor((Date.now() - lastArduinoHeartbeat) / 1000);
+            if (secondsSince < 5) {
+                lastSeenEl.textContent = 'Active now';
+            } else if (secondsSince < 60) {
+                lastSeenEl.textContent = `${secondsSince}s ago`;
+            } else if (secondsSince < 120) {
+                lastSeenEl.textContent = `1 min ago`;
+            } else {
+                const minutes = Math.floor(secondsSince / 60);
+                lastSeenEl.textContent = `${minutes} min ago`;
+            }
         } else {
-            const minutes = Math.floor(secondsSince / 60);
-            lastSeenEl.textContent = `${minutes} min ago`;
+            lastSeenEl.textContent = 'Waiting for connection...';
         }
-    } else {
-        lastSeenEl.textContent = 'Waiting for connection...';
+        
+        // Update connection indicator
+        if (isConnected) {
+            statusDot.className = 'status-dot connected';
+            statusText.textContent = 'Connected';
+        } else {
+            statusDot.className = 'status-dot offline';
+            statusText.textContent = 'Not Connected';
+        }
     }
     
-    // Use server's isConnected value (it knows best when Arduino last reported)
-    if (isConnected) {
-        // Connected - green
-        statusDot.className = 'status-dot connected';
-        statusText.textContent = 'Connected';
+    // ALWAYS update control states (even during waiting state)
+    // Enable ALL controls only if: connected AND not waiting for any response
+    const isWaiting = waitingForResponse || waitingForSchedule;
+    const shouldEnable = isConnected && !isWaiting;
+    
+    if (shouldEnable) {
+        // Enable all controls
+        toggle.disabled = false;
+        toggle.style.opacity = '1';
+        toggle.style.cursor = 'pointer';
         
-        // Enable controls only if not waiting for response
-        if (!waitingForResponse) {
-            toggle.disabled = false;
-            toggle.style.opacity = '1';
-            toggle.style.cursor = 'pointer';
-        }
-        
-        if (!waitingForSchedule) {
-            saveScheduleBtn.disabled = false;
-            clearScheduleBtn.disabled = false;
-            daySelect.disabled = false;
-            monthSelect.disabled = false;
-            yearSelect.disabled = false;
-            hourSelect.disabled = false;
-            minuteSelect.disabled = false;
-            actionSelect.disabled = false;
-        }
+        saveScheduleBtn.disabled = false;
+        clearScheduleBtn.disabled = false;
+        daySelect.disabled = false;
+        monthSelect.disabled = false;
+        yearSelect.disabled = false;
+        hourSelect.disabled = false;
+        minuteSelect.disabled = false;
+        actionSelect.disabled = false;
     } else {
-        // Not connected - red
-        statusDot.className = 'status-dot offline';
-        statusText.textContent = 'Not Connected';
-        
-        // Disable all controls when disconnected
+        // Disable all controls (either not connected OR waiting for response)
         toggle.disabled = true;
         toggle.style.opacity = '0.5';
         toggle.style.cursor = 'not-allowed';
