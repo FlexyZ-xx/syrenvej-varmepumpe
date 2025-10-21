@@ -6,7 +6,9 @@
     "dev": "vercel dev",
     "build": "vercel build"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@vercel/kv": "^1.0.1"
+  },
   "devDependencies": {}
 }
 

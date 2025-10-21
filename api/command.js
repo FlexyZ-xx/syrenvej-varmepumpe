@@ -1,6 +1,7 @@
-// Simple in-memory storage for commands
-// In production, you could use Vercel KV for persistence
-let pendingCommand = null;
+import { kv } from '@vercel/kv';
+
+// Persistent storage using Vercel KV
+// Replaces in-memory storage to survive serverless cold starts
 
 // API Key Authentication
 const API_KEY = (process.env.API_KEY || 'change-me-in-production').trim();
@@ -35,11 +36,13 @@ export default async function handler(req, res) {
                 return res.status(400).json({ error: 'Invalid command' });
             }
 
-            // Store the command for Arduino to pick up
-            pendingCommand = {
+            // Store the command in KV for Arduino to pick up
+            const pendingCommand = {
                 ...command,
                 timestamp: Date.now()
             };
+
+            await kv.set('arduino:command', pendingCommand);
 
             console.log('Command received:', pendingCommand);
 
@@ -55,13 +58,20 @@ export default async function handler(req, res) {
 
     if (req.method === 'GET') {
         // Arduino polls for pending command
-        if (pendingCommand) {
-            const cmd = pendingCommand;
-            pendingCommand = null; // Clear after sending
-            return res.status(200).json(cmd);
-        }
+        try {
+            const pendingCommand = await kv.get('arduino:command');
+            
+            if (pendingCommand) {
+                // Clear after sending
+                await kv.del('arduino:command');
+                return res.status(200).json(pendingCommand);
+            }
 
-        return res.status(200).json({ type: 'none' });
+            return res.status(200).json({ type: 'none' });
+        } catch (error) {
+            console.error('Error fetching command:', error);
+            return res.status(500).json({ error: 'Server error' });
+        }
     }
 
     return res.status(405).json({ error: 'Method not allowed' });

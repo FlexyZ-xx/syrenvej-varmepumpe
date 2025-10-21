@@ -1,10 +1,7 @@
-// Simple in-memory storage for Arduino state
-// The Arduino will report its state here
-let arduinoState = {
-    relayState: 'off',
-    schedule: null,
-    lastUpdate: null
-};
+import { kv } from '@vercel/kv';
+
+// Persistent storage using Vercel KV
+// Replaces in-memory storage to survive serverless cold starts
 
 // API Key Authentication
 const API_KEY = (process.env.API_KEY || 'change-me-in-production').trim();
@@ -34,11 +31,14 @@ export default async function handler(req, res) {
         try {
             const state = req.body;
             
-            arduinoState = {
+            const arduinoState = {
                 relayState: state.relayState || 'off',
                 schedule: state.schedule || null,
                 lastUpdate: Date.now()
             };
+
+            // Store in Vercel KV (persistent across cold starts)
+            await kv.set('arduino:state', arduinoState);
 
             console.log('State updated:', arduinoState);
 
@@ -51,17 +51,27 @@ export default async function handler(req, res) {
 
     if (req.method === 'GET') {
         // Web interface requests current state
-        // Include lastUpdate so UI can check if Arduino is still active
-        // Connection timeout: 120 seconds (gives 60s buffer for 60s heartbeat interval)
-        // Note: Due to serverless cold starts, lastUpdate might be null initially
-        const isConnected = arduinoState.lastUpdate ? (Date.now() - arduinoState.lastUpdate) < 120000 : false;
-        
-        return res.status(200).json({
-            relayState: arduinoState.relayState,
-            schedule: arduinoState.schedule,
-            lastUpdate: arduinoState.lastUpdate,
-            isConnected: isConnected
-        });
+        try {
+            // Fetch from Vercel KV (persistent storage)
+            const arduinoState = await kv.get('arduino:state') || {
+                relayState: 'off',
+                schedule: null,
+                lastUpdate: null
+            };
+            
+            // Connection timeout: 120 seconds (gives 60s buffer for 60s heartbeat interval)
+            const isConnected = arduinoState.lastUpdate ? (Date.now() - arduinoState.lastUpdate) < 120000 : false;
+            
+            return res.status(200).json({
+                relayState: arduinoState.relayState,
+                schedule: arduinoState.schedule,
+                lastUpdate: arduinoState.lastUpdate,
+                isConnected: isConnected
+            });
+        } catch (error) {
+            console.error('Error fetching state:', error);
+            return res.status(500).json({ error: 'Server error' });
+        }
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
