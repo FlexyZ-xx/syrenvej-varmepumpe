@@ -1,7 +1,11 @@
 import { kv } from '@vercel/kv';
 
-// Persistent storage using Vercel KV
-// Replaces in-memory storage to survive serverless cold starts
+// Hybrid storage: KV if available, in-memory as fallback
+// This allows the app to work before KV is set up
+let pendingCommand = null;
+
+// Check if KV is configured
+const hasKV = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
 
 // API Key Authentication
 const API_KEY = (process.env.API_KEY || 'change-me-in-production').trim();
@@ -36,15 +40,25 @@ export default async function handler(req, res) {
                 return res.status(400).json({ error: 'Invalid command' });
             }
 
-            // Store the command in KV for Arduino to pick up
-            const pendingCommand = {
+            // Store the command for Arduino to pick up
+            const cmd = {
                 ...command,
                 timestamp: Date.now()
             };
 
-            await kv.set('arduino:command', pendingCommand);
-
-            console.log('Command received:', pendingCommand);
+            // Try KV first, fallback to memory
+            if (hasKV) {
+                try {
+                    await kv.set('arduino:command', cmd);
+                    console.log('Command stored in KV:', cmd);
+                } catch (kvError) {
+                    console.error('KV error, using memory fallback:', kvError);
+                    pendingCommand = cmd;
+                }
+            } else {
+                pendingCommand = cmd;
+                console.log('Command stored in memory (KV not configured):', cmd);
+            }
 
             return res.status(200).json({ 
                 success: true,
@@ -59,12 +73,32 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
         // Arduino polls for pending command
         try {
-            const pendingCommand = await kv.get('arduino:command');
+            let cmd = null;
             
-            if (pendingCommand) {
-                // Clear after sending
-                await kv.del('arduino:command');
-                return res.status(200).json(pendingCommand);
+            // Try KV first, fallback to memory
+            if (hasKV) {
+                try {
+                    cmd = await kv.get('arduino:command');
+                    if (cmd) {
+                        // Clear after sending
+                        await kv.del('arduino:command');
+                    } else {
+                        // Fallback to memory if KV is empty
+                        cmd = pendingCommand;
+                        pendingCommand = null;
+                    }
+                } catch (kvError) {
+                    console.error('KV error, using memory fallback:', kvError);
+                    cmd = pendingCommand;
+                    pendingCommand = null;
+                }
+            } else {
+                cmd = pendingCommand;
+                pendingCommand = null;
+            }
+            
+            if (cmd) {
+                return res.status(200).json(cmd);
             }
 
             return res.status(200).json({ type: 'none' });

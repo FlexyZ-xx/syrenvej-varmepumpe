@@ -1,7 +1,15 @@
 import { kv } from '@vercel/kv';
 
-// Persistent storage using Vercel KV
-// Replaces in-memory storage to survive serverless cold starts
+// Hybrid storage: KV if available, in-memory as fallback
+// This allows the app to work before KV is set up
+let memoryState = {
+    relayState: 'off',
+    schedule: null,
+    lastUpdate: null
+};
+
+// Check if KV is configured
+const hasKV = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
 
 // API Key Authentication
 const API_KEY = (process.env.API_KEY || 'change-me-in-production').trim();
@@ -37,10 +45,19 @@ export default async function handler(req, res) {
                 lastUpdate: Date.now()
             };
 
-            // Store in Vercel KV (persistent across cold starts)
-            await kv.set('arduino:state', arduinoState);
-
-            console.log('State updated:', arduinoState);
+            // Try KV first, fallback to memory
+            if (hasKV) {
+                try {
+                    await kv.set('arduino:state', arduinoState);
+                    console.log('State stored in KV:', arduinoState);
+                } catch (kvError) {
+                    console.error('KV error, using memory fallback:', kvError);
+                    memoryState = arduinoState;
+                }
+            } else {
+                memoryState = arduinoState;
+                console.log('State stored in memory (KV not configured):', arduinoState);
+            }
 
             return res.status(200).json({ success: true });
         } catch (error) {
@@ -52,12 +69,22 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
         // Web interface requests current state
         try {
-            // Fetch from Vercel KV (persistent storage)
-            const arduinoState = await kv.get('arduino:state') || {
-                relayState: 'off',
-                schedule: null,
-                lastUpdate: null
-            };
+            let arduinoState;
+            
+            // Try KV first, fallback to memory
+            if (hasKV) {
+                try {
+                    arduinoState = await kv.get('arduino:state');
+                    if (!arduinoState) {
+                        arduinoState = memoryState; // Fallback to memory if KV is empty
+                    }
+                } catch (kvError) {
+                    console.error('KV error, using memory fallback:', kvError);
+                    arduinoState = memoryState;
+                }
+            } else {
+                arduinoState = memoryState;
+            }
             
             // Connection timeout: 120 seconds (gives 60s buffer for 60s heartbeat interval)
             const isConnected = arduinoState.lastUpdate ? (Date.now() - arduinoState.lastUpdate) < 120000 : false;
