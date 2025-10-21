@@ -86,8 +86,9 @@ export default async function handler(req, res) {
                 arduinoState = memoryState;
             }
             
-            // Connection timeout: 120 seconds (gives 60s buffer for 60s heartbeat interval)
-            const isConnected = arduinoState.lastUpdate ? (Date.now() - arduinoState.lastUpdate) < 120000 : false;
+            // Connection timeout: 90 seconds (gives 30s buffer for 60s heartbeat interval)
+            // This detects offline Arduino faster while still being very safe for network delays
+            const isConnected = arduinoState.lastUpdate ? (Date.now() - arduinoState.lastUpdate) < 90000 : false;
             
             return res.status(200).json({
                 relayState: arduinoState.relayState,
