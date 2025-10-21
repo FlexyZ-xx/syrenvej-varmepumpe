@@ -105,14 +105,14 @@ function setupEventListeners() {
         expectedState = newState;
         waitingForResponse = true;
         
-        // Disable toggle while waiting for Relay
-        toggle.disabled = true;
-        toggle.style.opacity = '0.5';
-        toggle.style.cursor = 'wait';
-        toggle.style.pointerEvents = 'none'; // Extra protection
-        
         // Show loading in status box
         showWaitingState('Waiting for relay confirmation...');
+        
+        // IMMEDIATELY disable ALL controls (don't wait for next poll cycle)
+        updateArduinoStatus(lastConnectionState);
+        
+        // Extra protection for toggle
+        toggle.style.pointerEvents = 'none';
         
         await sendCommand({ type: 'manual', action: command });
         
@@ -165,6 +165,9 @@ function setupEventListeners() {
         // Set waiting state and show loading
         waitingForSchedule = true;
         showWaitingState('Waiting for relay confirmation...');
+        
+        // IMMEDIATELY disable ALL controls (don't wait for next poll cycle)
+        updateArduinoStatus(lastConnectionState);
 
         await sendCommand(schedule);
         
@@ -188,6 +191,9 @@ function setupEventListeners() {
         // Set waiting state and show loading
         waitingForSchedule = true;
         showWaitingState('Waiting for relay confirmation...');
+        
+        // IMMEDIATELY disable ALL controls (don't wait for next poll cycle)
+        updateArduinoStatus(lastConnectionState);
         
         await sendCommand({ type: 'clear_schedule' });
         
