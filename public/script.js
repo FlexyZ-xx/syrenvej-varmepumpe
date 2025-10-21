@@ -285,11 +285,13 @@ async function loadCurrentState() {
         const toggle = document.getElementById('manualToggle');
         const arduinoState = data.relayState === 'on';
         
+        // ALWAYS update toggle to match Arduino state (no matter what)
+        toggle.checked = arduinoState;
+        
         // If waiting for confirmation, check if Relay confirmed the expected state
         if (waitingForResponse && expectedState !== null) {
             if (arduinoState === expectedState) {
-                // Relay confirmed! Update toggle and clear waiting state
-                toggle.checked = arduinoState;
+                // Relay confirmed! Clear waiting state
                 toggle.style.pointerEvents = 'auto';
                 waitingForResponse = false;
                 expectedState = null;
@@ -297,10 +299,7 @@ async function loadCurrentState() {
                 // Hide waiting state (this will call updateArduinoStatus to re-enable all controls)
                 hideWaitingState();
             }
-            // If state doesn't match, keep waiting
-        } else {
-            // Normal update when not waiting
-            toggle.checked = arduinoState;
+            // If state doesn't match expected, keep waiting
         }
 
         // First, update schedule display if we have schedule data in the response
