@@ -10,16 +10,26 @@
  * 
  * Configuration:
  * - Update WIFI_SSID and WIFI_PASSWORD
+ * - Choose LED type: RGB_LED or STATIC_LED
  * - All other settings are pre-configured for production
  * 
  * LED Status:
- * - PURPLE (solid): Starting up
- * - YELLOW (solid): WiFi connected, waiting for time sync
- * - GREEN (blinking): Normal operation - loop is running
- *   (toggles on/off every 1 second to show device is alive)
- * - RED (solid): Error/retry state - WiFi or HTTP errors detected
- *   (shows during WiFi reconnection attempts or HTTP error recovery)
+ * RGB_LED (WS2812):
+ *   - PURPLE (solid): Starting up
+ *   - YELLOW (solid): WiFi connected, waiting for time sync
+ *   - GREEN (blinking): Normal operation - loop is running
+ *   - RED (solid): Error/retry state - WiFi or HTTP errors
+ * 
+ * STATIC_LED (Built-in LED):
+ *   - BLINKING FAST (100ms): Starting up / Error/retry state
+ *   - BLINKING SLOW (1000ms): Normal operation
  */
+
+// ============================================
+// LED Type Configuration - Choose one:
+// ============================================
+#define RGB_LED      // Comment this out to use STATIC_LED instead
+// #define STATIC_LED   // Uncomment this to use built-in LED
 
 #include <WiFi.h>
 #include <HTTPClient.h>
@@ -27,8 +37,12 @@
 #include <ArduinoJson.h>
 #include <time.h>
 #include <Relay-SOLDERED.h>
-#include <WS2812-SOLDERED.h>
 #include <esp_task_wdt.h>  // Watchdog timer
+
+// Include WS2812 library only for RGB_LED
+#ifdef RGB_LED
+#include <WS2812-SOLDERED.h>
+#endif
 
 // WiFi Configuration
 const char* WIFI_SSID = "dezign";
@@ -41,7 +55,9 @@ const char* STATUS_ENDPOINT = "/api/status.js";
 const char* API_KEY = "a3bad1660cef3fd1bb3e9573711dd36f3fa8c5a1dd61d1d0e3cb991e330b1fa4";
 
 // LED Configuration
+#ifdef RGB_LED
 WS2812 pixels(1, LEDWS_BUILTIN);
+#endif
 
 // Relay Configuration
 CH_Relay Relay;
@@ -96,6 +112,9 @@ const int DAYLIGHT_OFFSET_SEC = 3600;  // Adjust for daylight saving
 // LED Control Functions
 // ============================================
 
+#ifdef RGB_LED
+// WS2812 RGB LED implementation
+
 void initLED() {
     pixels.begin();
     pixels.clear();
@@ -143,6 +162,55 @@ void toggleLED() {
         }
     }
 }
+
+#else // STATIC_LED
+// Built-in LED implementation
+
+enum LEDMode {
+    LED_NORMAL,     // Slow blink (1000ms) - normal operation
+    LED_ERROR       // Fast blink (100ms) - startup/error
+};
+
+LEDMode currentLEDMode = LED_NORMAL;
+
+void initLED() {
+    pinMode(LED_BUILTIN, OUTPUT);
+    digitalWrite(LED_BUILTIN, LOW);
+}
+
+void setLEDPurple() {
+    currentLEDMode = LED_ERROR;  // Fast blink for startup
+}
+
+void setLEDYellow() {
+    currentLEDMode = LED_NORMAL;  // Slow blink after WiFi
+}
+
+void setLEDGreen() {
+    currentLEDMode = LED_NORMAL;  // Slow blink for normal operation
+}
+
+void setLEDRed() {
+    currentLEDMode = LED_ERROR;  // Fast blink for errors
+}
+
+void setLEDBlue() {
+    currentLEDMode = LED_NORMAL;  // Slow blink
+}
+
+void toggleLED() {
+    unsigned long now = millis();
+    unsigned long interval = (currentLEDMode == LED_ERROR) ? 100 : LED_TOGGLE_INTERVAL;
+    
+    // Toggle LED at different speeds based on mode
+    if (now - lastLedToggle >= interval) {
+        lastLedToggle = now;
+        ledState = !ledState;
+        digitalWrite(LED_BUILTIN, ledState ? HIGH : LOW);
+    }
+}
+
+#endif
 
 // ============================================
 // Setup
