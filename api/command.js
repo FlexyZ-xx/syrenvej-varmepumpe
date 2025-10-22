@@ -60,10 +60,10 @@ export default async function handler(req, res) {
                 console.log('Command stored in memory (KV not configured):', cmd);
             }
 
-            // Log command to stats (don't wait for it, fire and forget)
+            // Log command to stats (await to ensure it completes before function terminates)
             try {
                 const statsUrl = `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}/api/stats.js`;
-                fetch(statsUrl, {
+                const statsResponse = await fetch(statsUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -74,7 +74,11 @@ export default async function handler(req, res) {
                         commandType: command.type,
                         commandData: command
                     })
-                }).catch(err => console.error('Failed to log command to stats:', err));
+                });
+                
+                if (!statsResponse.ok) {
+                    console.error('Stats logging failed:', statsResponse.status, await statsResponse.text());
+                }
             } catch (statsError) {
                 // Don't fail the command if stats logging fails
                 console.error('Error logging to stats:', statsError);
