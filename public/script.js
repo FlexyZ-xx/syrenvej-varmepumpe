@@ -206,25 +206,24 @@ function setupEventListeners() {
 
 function showWaitingState(message) {
     const statusBox = document.getElementById('arduinoStatus');
-    const statusDot = document.getElementById('statusDot');
     const statusSpinner = document.getElementById('statusSpinner');
     const statusText = document.getElementById('statusText');
     
     isShowingWaitingState = true;
     statusBox.classList.add('waiting');
-    statusDot.style.display = 'none';
+    // Keep status dot visible so connection status remains visible during waiting
+    // Don't hide the dot - let it show green/red based on connection status
     statusSpinner.style.display = 'block';
     statusText.textContent = message;
 }
 
 function hideWaitingState() {
     const statusBox = document.getElementById('arduinoStatus');
-    const statusDot = document.getElementById('statusDot');
     const statusSpinner = document.getElementById('statusSpinner');
     
     isShowingWaitingState = false;
     statusBox.classList.remove('waiting');
-    statusDot.style.display = 'block';
+    // No need to restore dot display - it was never hidden
     statusSpinner.style.display = 'none';
     
     // Restore last known connection status (not force to false)
@@ -402,31 +401,37 @@ function updateArduinoStatus(isConnected) {
     const minuteSelect = document.getElementById('minuteSelect');
     const actionSelect = document.getElementById('actionSelect');
     
-    // Update status display ONLY if not showing waiting state
-    if (!isShowingWaitingState) {
-        // Always show time since last heartbeat regardless of connection status
-        if (lastArduinoHeartbeat) {
-            const secondsSince = Math.floor((Date.now() - lastArduinoHeartbeat) / 1000);
-            if (secondsSince < 5) {
-                lastSeenEl.textContent = 'Active now';
-            } else if (secondsSince < 60) {
-                lastSeenEl.textContent = `${secondsSince}s ago`;
-            } else if (secondsSince < 120) {
-                lastSeenEl.textContent = `1 min ago`;
-            } else {
-                const minutes = Math.floor(secondsSince / 60);
-                lastSeenEl.textContent = `${minutes} min ago`;
-            }
+    // ALWAYS update connection indicator dot (even during waiting state)
+    // The dot shows connection status, which is independent of waiting message
+    if (isConnected) {
+        statusDot.className = 'status-dot connected';
+    } else {
+        statusDot.className = 'status-dot offline';
+    }
+    
+    // ALWAYS update "last seen" timestamp (even during waiting state)
+    if (lastArduinoHeartbeat) {
+        const secondsSince = Math.floor((Date.now() - lastArduinoHeartbeat) / 1000);
+        if (secondsSince < 5) {
+            lastSeenEl.textContent = 'Active now';
+        } else if (secondsSince < 60) {
+            lastSeenEl.textContent = `${secondsSince}s ago`;
+        } else if (secondsSince < 120) {
+            lastSeenEl.textContent = `1 min ago`;
         } else {
-            lastSeenEl.textContent = 'Waiting for connection...';
+            const minutes = Math.floor(secondsSince / 60);
+            lastSeenEl.textContent = `${minutes} min ago`;
         }
-        
-        // Update connection indicator
+    } else {
+        lastSeenEl.textContent = 'Waiting for connection...';
+    }
+    
+    // Update status text ONLY if not showing waiting message
+    // (waiting message like "Waiting for relay confirmation..." takes precedence)
+    if (!isShowingWaitingState) {
         if (isConnected) {
-            statusDot.className = 'status-dot connected';
             statusText.textContent = 'Connected';
         } else {
-            statusDot.className = 'status-dot offline';
             statusText.textContent = 'Not Connected';
         }
     }
