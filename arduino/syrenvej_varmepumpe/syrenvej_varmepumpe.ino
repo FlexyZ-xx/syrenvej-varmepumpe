@@ -70,11 +70,16 @@ const unsigned long STATUS_REPORT_INTERVAL = 60000;  // Report status every 1 mi
 const int WDT_TIMEOUT = 120;  // Watchdog timeout in seconds (2 minutes)
 
 // EEPROM addresses
-const int EEPROM_SIZE = 512;
+const int EEPROM_SIZE = 2048;  // Increased for error log storage
 const int ADDR_RELAY_STATE = 0;
 const int ADDR_SCHEDULE_START = 10;
+const int ADDR_ERROR_LOG_START = 100;  // Error log starts at byte 100
 
-// State structure
+// Error log configuration
+const int MAX_ERROR_LOGS = 10;
+const int ERROR_MESSAGE_LENGTH = 80;
+
+// State structures
 struct Schedule {
     bool active;
     int year;
@@ -86,8 +91,21 @@ struct Schedule {
     bool executed;
 };
 
+struct ErrorLog {
+    unsigned long timestamp;  // Unix timestamp (4 bytes)
+    char message[ERROR_MESSAGE_LENGTH];  // Error message (80 bytes)
+    bool valid;  // Flag to indicate if this entry is valid (1 byte)
+};
+
+// Circular buffer for error logs
+struct ErrorLogBuffer {
+    int nextIndex;  // Next position to write (circular buffer)
+    ErrorLog logs[MAX_ERROR_LOGS];
+};
+
 bool relayState = false;
 Schedule currentSchedule;
+ErrorLogBuffer errorLogBuffer;  // Error log storage
 
 unsigned long lastPoll = 0;
 unsigned long lastStatusReport = 0;
@@ -259,6 +277,7 @@ void setup() {
         setLEDRed();
         
         if (wifiRetries >= MAX_WIFI_RETRIES) {
+            logError("Failed to connect to WiFi after 3 attempts - rebooting");
             Serial.println("Failed to connect to WiFi after 3 attempts.");
             Serial.println("Rebooting in 5 seconds...");
             delay(5000);
@@ -268,6 +287,12 @@ void setup() {
         Serial.print("Retrying WiFi connection (attempt ");
         Serial.print(wifiRetries + 1);
         Serial.println("/3) in 5 seconds...");
+        
+        // Log the retry
+        char errorMsg[ERROR_MESSAGE_LENGTH];
+        snprintf(errorMsg, ERROR_MESSAGE_LENGTH, "WiFi connection failed (attempt %d/3)", wifiRetries);
+        logError(errorMsg);
+        
         delay(5000);
         connectWiFi();
     }
@@ -311,8 +336,15 @@ void setup() {
                 Serial.print("Retrying initial heartbeat (attempt ");
                 Serial.print(heartbeatRetries + 1);
                 Serial.println("/3)...");
+                
+                // Log the retry
+                char errorMsg[ERROR_MESSAGE_LENGTH];
+                snprintf(errorMsg, ERROR_MESSAGE_LENGTH, "Initial heartbeat failed (attempt %d/3)", heartbeatRetries);
+                logError(errorMsg);
+                
                 delay(3000);
             } else {
+                logError("Initial heartbeat failed after 3 attempts");
                 Serial.println("Initial heartbeat failed after 3 attempts. Will retry in main loop.");
             }
         }
@@ -343,12 +375,18 @@ void loop() {
         Serial.print(consecutiveWifiFailures);
         Serial.println("/3)...");
         
+        // Log the error
+        char errorMsg[ERROR_MESSAGE_LENGTH];
+        snprintf(errorMsg, ERROR_MESSAGE_LENGTH, "WiFi disconnected (attempt %d/3)", consecutiveWifiFailures);
+        logError(errorMsg);
+        
         WiFi.disconnect();
         delay(1000);
         connectWiFi();
         
         // If still not connected after 3 attempts, reboot
         if (WiFi.status() != WL_CONNECTED && consecutiveWifiFailures >= 3) {
+            logError("Failed to reconnect WiFi after 3 attempts - rebooting");
             Serial.println("Failed to reconnect WiFi after 3 attempts.");
             Serial.println("Rebooting in 5 seconds...");
             delay(5000);
@@ -472,11 +510,21 @@ void pollForCommands() {
                 
                 // Send immediate heartbeat after clearing schedule
                 reportStatus();
+                
+            } else if (strcmp(type, "debug") == 0) {
+                Serial.println("Debug command received - sending error log");
+                sendErrorLog();
             }
         }
     } else if (httpCode < 0) {
         // Negative HTTP codes indicate connection issues
         consecutiveHttpErrors++;
+        
+        // Log the error
+        char errorMsg[ERROR_MESSAGE_LENGTH];
+        snprintf(errorMsg, ERROR_MESSAGE_LENGTH, "Poll HTTP error: %d", httpCode);
+        logError(errorMsg);
+        
         Serial.print("HTTP error: ");
         Serial.println(httpCode);
         
@@ -485,6 +533,7 @@ void pollForCommands() {
             // Turn LED red during HTTP error recovery
             setLEDRed();
             
+            logError("Multiple HTTP errors - reconnecting WiFi");
             Serial.println("Multiple HTTP errors detected. Reconnecting WiFi...");
             WiFi.disconnect();
             delay(1000);
@@ -492,6 +541,7 @@ void pollForCommands() {
             
             // If WiFi reconnection failed, reboot
             if (WiFi.status() != WL_CONNECTED) {
+                logError("WiFi reconnection failed - rebooting");
                 Serial.println("WiFi reconnection failed after HTTP errors.");
                 Serial.println("Rebooting in 5 seconds...");
                 delay(5000);
@@ -562,11 +612,17 @@ void reportStatus() {
         Serial.println(httpCode);
         consecutiveHttpErrors++;
         
+        // Log the error
+        char errorMsg[ERROR_MESSAGE_LENGTH];
+        snprintf(errorMsg, ERROR_MESSAGE_LENGTH, "Status report HTTP error: %d", httpCode);
+        logError(errorMsg);
+        
         // If we get multiple HTTP errors, force WiFi reconnection
         if (consecutiveHttpErrors >= 3) {
             // Turn LED red during HTTP error recovery
             setLEDRed();
             
+            logError("Multiple status HTTP errors - reconnecting WiFi");
             Serial.println("Multiple HTTP errors detected. Reconnecting WiFi...");
             WiFi.disconnect();
             delay(1000);
@@ -574,6 +630,7 @@ void reportStatus() {
             
             // If WiFi reconnection failed, reboot
             if (WiFi.status() != WL_CONNECTED) {
+                logError("WiFi reconnection failed after status errors - rebooting");
                 Serial.println("WiFi reconnection failed after HTTP errors.");
                 Serial.println("Rebooting in 5 seconds...");
                 delay(5000);
@@ -637,6 +694,98 @@ void saveSchedule() {
     Serial.println("Schedule saved to EEPROM");
 }
 
+void saveErrorLog() {
+    EEPROM.put(ADDR_ERROR_LOG_START, errorLogBuffer);
+    EEPROM.commit();
+}
+
+void loadErrorLog() {
+    EEPROM.get(ADDR_ERROR_LOG_START, errorLogBuffer);
+    
+    // Initialize if not valid (first boot or corrupted)
+    if (errorLogBuffer.nextIndex < 0 || errorLogBuffer.nextIndex >= MAX_ERROR_LOGS) {
+        Serial.println("Initializing error log buffer...");
+        errorLogBuffer.nextIndex = 0;
+        for (int i = 0; i < MAX_ERROR_LOGS; i++) {
+            errorLogBuffer.logs[i].valid = false;
+            errorLogBuffer.logs[i].timestamp = 0;
+            errorLogBuffer.logs[i].message[0] = '\0';
+        }
+        saveErrorLog();
+    } else {
+        Serial.print("Loaded error log buffer. Next index: ");
+        Serial.println(errorLogBuffer.nextIndex);
+    }
+}
+
+void logError(const char* errorMessage) {
+    // Get current time
+    time_t now;
+    time(&now);
+    
+    // Store error in circular buffer
+    int index = errorLogBuffer.nextIndex;
+    errorLogBuffer.logs[index].timestamp = now;
+    errorLogBuffer.logs[index].valid = true;
+    strncpy(errorLogBuffer.logs[index].message, errorMessage, ERROR_MESSAGE_LENGTH - 1);
+    errorLogBuffer.logs[index].message[ERROR_MESSAGE_LENGTH - 1] = '\0';  // Ensure null termination
+    
+    // Move to next index (circular)
+    errorLogBuffer.nextIndex = (errorLogBuffer.nextIndex + 1) % MAX_ERROR_LOGS;
+    
+    // Save to EEPROM
+    saveErrorLog();
+    
+    Serial.print("Error logged: ");
+    Serial.println(errorMessage);
+}
+
+String getErrorLogJson() {
+    DynamicJsonDocument doc(4096);
+    JsonArray errors = doc.createNestedArray("errors");
+    
+    // Read logs in chronological order (oldest to newest)
+    for (int i = 0; i < MAX_ERROR_LOGS; i++) {
+        // Start from the oldest entry
+        int index = (errorLogBuffer.nextIndex + i) % MAX_ERROR_LOGS;
+        
+        if (errorLogBuffer.logs[index].valid && errorLogBuffer.logs[index].timestamp > 0) {
+            JsonObject error = errors.createNestedObject();
+            error["timestamp"] = errorLogBuffer.logs[index].timestamp;
+            error["message"] = errorLogBuffer.logs[index].message;
+        }
+    }
+    
+    String output;
+    serializeJson(doc, output);
+    return output;
+}
+
+void sendErrorLog() {
+    if (WiFi.status() != WL_CONNECTED) return;
+    
+    String url = String(API_HOST) + "/api/debug.js";
+    String jsonPayload = getErrorLogJson();
+    
+    HTTPClient http;
+    http.begin(url);
+    http.setTimeout(10000);
+    http.addHeader("Content-Type", "application/json");
+    http.addHeader("X-API-Key", API_KEY);
+    
+    int httpCode = http.POST(jsonPayload);
+    
+    if (httpCode > 0) {
+        Serial.print("Error log sent successfully. HTTP code: ");
+        Serial.println(httpCode);
+    } else {
+        Serial.print("Failed to send error log. HTTP code: ");
+        Serial.println(httpCode);
+    }
+    
+    http.end();
+}
+
 void loadState() {
     Serial.println("Loading state from EEPROM...");
     
@@ -646,6 +795,9 @@ void loadState() {
     
     // Load schedule
     EEPROM.get(ADDR_SCHEDULE_START, currentSchedule);
+    
+    // Load error log
+    loadErrorLog();
     
     // Validate loaded data
     if (currentSchedule.year < 2020 || currentSchedule.year > 2100) {
