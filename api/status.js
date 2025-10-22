@@ -116,11 +116,26 @@ export default async function handler(req, res) {
             // This detects offline Arduino faster while still being very safe for network delays
             const isConnected = arduinoState.lastUpdate ? (Date.now() - arduinoState.lastUpdate) < 90000 : false;
             
+            // Get error log from memory (shared within this function's context)
+            let errorLog = memoryErrorLog;
+            if (hasKV) {
+                try {
+                    const storedLog = await kv.get('arduino:error_log');
+                    if (storedLog) {
+                        errorLog = storedLog;
+                    }
+                } catch (kvError) {
+                    console.error('KV error reading error log:', kvError);
+                    // Fall back to memory
+                }
+            }
+            
             return res.status(200).json({
                 relayState: arduinoState.relayState,
                 schedule: arduinoState.schedule,
                 lastUpdate: arduinoState.lastUpdate,
-                isConnected: isConnected
+                isConnected: isConnected,
+                errors: errorLog.errors || []  // Include error log in status response
             });
         } catch (error) {
             console.error('Error fetching state:', error);

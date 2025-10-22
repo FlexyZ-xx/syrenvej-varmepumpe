@@ -1,18 +1,11 @@
 /**
  * Debug endpoint for retrieving Arduino error logs
  * 
- * Error logs are automatically sent by Arduino with every heartbeat to /api/status.js
- * This endpoint simply retrieves them from the same storage.
+ * Note: Error logs are now included in /api/status.js GET response.
+ * This is a convenience endpoint that returns the same data.
  * 
- * GET: UI retrieves error logs
+ * GET: Returns error logs (same as status.js response.errors)
  */
-
-import { kv } from '@vercel/kv';
-
-const API_KEY = 'a3bad1660cef3fd1bb3e9573711dd36f3fa8c5a1dd61d1d0e3cb991e330b1fa4';
-
-// Check if KV is configured
-const hasKV = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
 
 export default async function handler(req, res) {
     // CORS headers
@@ -24,6 +17,8 @@ export default async function handler(req, res) {
         return res.status(200).end();
     }
     
+    const API_KEY = 'a3bad1660cef3fd1bb3e9573711dd36f3fa8c5a1dd61d1d0e3cb991e330b1fa4';
+    
     // Verify API key
     const apiKey = req.headers['x-api-key'];
     if (apiKey !== API_KEY) {
@@ -31,31 +26,33 @@ export default async function handler(req, res) {
     }
     
     if (req.method === 'GET') {
-        // UI requesting error logs
         try {
-            let errorLog = { errors: [] };
+            // Call status.js internally to get the latest data (including errors)
+            const statusUrl = `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}/api/status.js`;
             
-            // Read from KV storage (same place where status.js stores errors)
-            if (hasKV) {
-                try {
-                    const storedLog = await kv.get('arduino:error_log');
-                    if (storedLog) {
-                        errorLog = storedLog;
-                    }
-                } catch (kvError) {
-                    console.error('KV error reading error log:', kvError);
-                    // Return empty errors array if KV fails
+            const response = await fetch(statusUrl, {
+                headers: {
+                    'X-API-Key': API_KEY
                 }
-            } else {
-                console.warn('KV not configured - error logs require Vercel KV to persist across serverless functions');
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Status API returned ${response.status}`);
             }
             
-            // Timestamps are already formatted by status.js, just return as-is
-            return res.status(200).json(errorLog);
+            const data = await response.json();
+            
+            // Return just the errors array
+            return res.status(200).json({
+                errors: data.errors || []
+            });
             
         } catch (error) {
             console.error('Error retrieving error log:', error);
-            return res.status(500).json({ error: 'Failed to retrieve error log' });
+            return res.status(500).json({ 
+                error: 'Failed to retrieve error log',
+                errors: []
+            });
         }
         
     } else {
