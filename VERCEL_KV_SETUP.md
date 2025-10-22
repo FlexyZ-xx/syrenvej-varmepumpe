@@ -49,13 +49,20 @@ After KV is set up and the deployment completes:
 
 - `arduino:state` - Stores `{ relayState, schedule, lastUpdate }`
 - `arduino:command` - Stores pending commands from the UI
+- `arduino:error_log` - Stores error logs from Arduino
+- `arduino:stats` - Stores login and command statistics
 
 ### API Endpoints
 
 - **POST /api/status.js** - Arduino reports state → stored in KV
 - **GET /api/status.js** - UI fetches state → reads from KV (always available)
-- **POST /api/command.js** - UI sends command → stored in KV
+- **POST /api/command.js** - UI sends command → stored in KV, logs to stats
 - **GET /api/command.js** - Arduino polls for commands → reads from KV
+- **GET /api/debug.js** - Retrieve error logs → reads from KV
+- **DELETE /api/debug.js** - Clear error logs → sends command to Arduino
+- **GET /api/stats.js** - Retrieve login/command statistics → reads from KV
+- **POST /api/stats.js** - Log events (automatic from UI) → stored in KV
+- **DELETE /api/stats.js** - Clear statistics → stored in KV
 
 ## Vercel KV Free Tier
 

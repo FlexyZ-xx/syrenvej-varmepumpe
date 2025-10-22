@@ -181,6 +181,12 @@ async function clearDebugLogs() {
 </script>
 ```
 
+## Related Endpoints
+
+For additional monitoring and analytics, see:
+- **`/api/stats.js`** - Login and command statistics tracking (see STATS_EXAMPLE.md)
+- **`/api/status.js`** - Current system status (includes error logs)
+
 ## Notes
 
 - Error logs persist across reboots (stored in EEPROM on Arduino)
