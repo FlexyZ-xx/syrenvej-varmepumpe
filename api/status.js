@@ -8,6 +8,8 @@ let memoryState = {
     lastUpdate: null
 };
 
+let memoryErrorLog = { errors: [] };
+
 // Check if KV is configured
 const hasKV = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
 
@@ -57,6 +59,30 @@ export default async function handler(req, res) {
             } else {
                 memoryState = arduinoState;
                 console.log('State stored in memory (KV not configured):', arduinoState);
+            }
+
+            // Also store error log if included in heartbeat
+            if (state.errors && Array.isArray(state.errors)) {
+                const errorLog = {
+                    errors: state.errors.map(err => ({
+                        timestamp: err.timestamp,
+                        time: new Date(err.timestamp * 1000).toISOString(),
+                        message: err.message
+                    }))
+                };
+
+                if (hasKV) {
+                    try {
+                        await kv.set('arduino:error_log', errorLog);
+                        console.log('Error log stored in KV:', errorLog.errors.length, 'errors');
+                    } catch (kvError) {
+                        console.error('KV error storing error log, using memory fallback:', kvError);
+                        memoryErrorLog = errorLog;
+                    }
+                } else {
+                    memoryErrorLog = errorLog;
+                    console.log('Error log stored in memory:', errorLog.errors.length, 'errors');
+                }
             }
 
             return res.status(200).json({ success: true });

@@ -510,10 +510,6 @@ void pollForCommands() {
                 
                 // Send immediate heartbeat after clearing schedule
                 reportStatus();
-                
-            } else if (strcmp(type, "debug") == 0) {
-                Serial.println("Debug command received - sending error log");
-                sendErrorLog();
             }
         }
     } else if (httpCode < 0) {
@@ -574,7 +570,8 @@ void reportStatus() {
     
     String url = String(API_HOST) + STATUS_ENDPOINT;
     
-    DynamicJsonDocument doc(1024);
+    // Larger buffer to accommodate error log
+    DynamicJsonDocument doc(4096);
     doc["relayState"] = relayState ? "on" : "off";
     
     if (currentSchedule.active) {
@@ -588,6 +585,19 @@ void reportStatus() {
         schedule["executed"] = currentSchedule.executed;
     } else {
         doc["schedule"] = nullptr;
+    }
+    
+    // Include error log in every heartbeat
+    JsonArray errors = doc.createNestedArray("errors");
+    for (int i = 0; i < MAX_ERROR_LOGS; i++) {
+        // Read logs in chronological order (oldest to newest)
+        int index = (errorLogBuffer.nextIndex + i) % MAX_ERROR_LOGS;
+        
+        if (errorLogBuffer.logs[index].valid && errorLogBuffer.logs[index].timestamp > 0) {
+            JsonObject error = errors.createNestedObject();
+            error["timestamp"] = errorLogBuffer.logs[index].timestamp;
+            error["message"] = errorLogBuffer.logs[index].message;
+        }
     }
     
     String jsonString;
@@ -738,52 +748,6 @@ void logError(const char* errorMessage) {
     
     Serial.print("Error logged: ");
     Serial.println(errorMessage);
-}
-
-String getErrorLogJson() {
-    DynamicJsonDocument doc(4096);
-    JsonArray errors = doc.createNestedArray("errors");
-    
-    // Read logs in chronological order (oldest to newest)
-    for (int i = 0; i < MAX_ERROR_LOGS; i++) {
-        // Start from the oldest entry
-        int index = (errorLogBuffer.nextIndex + i) % MAX_ERROR_LOGS;
-        
-        if (errorLogBuffer.logs[index].valid && errorLogBuffer.logs[index].timestamp > 0) {
-            JsonObject error = errors.createNestedObject();
-            error["timestamp"] = errorLogBuffer.logs[index].timestamp;
-            error["message"] = errorLogBuffer.logs[index].message;
-        }
-    }
-    
-    String output;
-    serializeJson(doc, output);
-    return output;
-}
-
-void sendErrorLog() {
-    if (WiFi.status() != WL_CONNECTED) return;
-    
-    String url = String(API_HOST) + "/api/debug.js";
-    String jsonPayload = getErrorLogJson();
-    
-    HTTPClient http;
-    http.begin(url);
-    http.setTimeout(10000);
-    http.addHeader("Content-Type", "application/json");
-    http.addHeader("X-API-Key", API_KEY);
-    
-    int httpCode = http.POST(jsonPayload);
-    
-    if (httpCode > 0) {
-        Serial.print("Error log sent successfully. HTTP code: ");
-        Serial.println(httpCode);
-    } else {
-        Serial.print("Failed to send error log. HTTP code: ");
-        Serial.println(httpCode);
-    }
-    
-    http.end();
 }
 
 void loadState() {
