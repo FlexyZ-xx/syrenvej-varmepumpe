@@ -6,18 +6,26 @@ Simple web interface to control a relay connected to an ESP32/Arduino via the cl
 
 - **Web Interface**: https://syrenvej-varmepumpe.vercel.app
 - **Password**: Check `public/auth.js` for current password
-- **Features**: Manual ON/OFF toggle + Schedule control
+- **Features**: Manual ON/OFF toggle + Schedule control + Error logging
 - **Hardware**: ESP32 + Soldered I2C Relay Board
+
+### Arduino LED Quick Reference
+- 🟢 **Green (blinking)** = ✅ All good! Normal operation
+- 🟣 **Purple** = Starting up
+- 🟡 **Yellow** = WiFi connected, syncing time
+- 🔴 **Red** = ⚠️ Error (WiFi/HTTP), auto-retrying
 
 ## How It Works
 
 ```
-Web Browser → Vercel API → Arduino (polls every 5s) → Relay → Heat Pump
+Web Browser → Vercel API → Arduino (polls every 60s) → Relay → Heat Pump
 ```
 
 - Arduino only makes outgoing HTTPS requests (no open ports)
 - All state stored locally on Arduino EEPROM
 - Web interface shows real-time connection status
+- Error logs automatically synced every heartbeat
+- Automatic WiFi reconnection and reboot on failures
 
 ## Setup
 
@@ -67,17 +75,60 @@ GPIO22 (SCL) →    SCL
 - **COM**   → Heat pump power source
 - **NC**    → Default open → Heat pump control wire
 
+### 4. Arduino LED Status Indicators
+
+The Arduino provides visual feedback through its LED to show operational status:
+
+#### RGB LED (WS2812) - Default
+- 🟣 **PURPLE (solid)** - Starting up / Initializing
+- 🟡 **YELLOW (solid)** - WiFi connected, waiting for time sync
+- 🟢 **GREEN (blinking)** - Normal operation (loop running, all good!)
+- 🔴 **RED (solid)** - Error/retry state (WiFi or HTTP errors)
+
+#### Built-in LED (STATIC_LED) - Alternative
+- ⚡ **BLINKING FAST (100ms)** - Starting up / Error/retry state
+- 💚 **BLINKING SLOW (1000ms)** - Normal operation
+
+**LED Type Configuration:**
+```cpp
+// In syrenvej_varmepumpe.ino (lines 31-32):
+#define RGB_LED      // WS2812 RGB LED (default)
+// #define STATIC_LED   // Uncomment to use built-in LED
+```
+
+**What Each Color Means:**
+
+| LED Color | Status | Action Needed |
+|-----------|--------|---------------|
+| 🟣 Purple | Starting up | Wait a few seconds |
+| 🟡 Yellow | WiFi connected | Syncing time, wait 5-10s |
+| 🟢 Green (blinking) | ✅ **All Good!** | Normal operation |
+| 🔴 Red | ⚠️ Error | Check WiFi/network, will auto-retry |
+
+**Startup Sequence:**
+1. 🟣 Purple → Power on / Initialization
+2. 🟡 Yellow → WiFi connected
+3. 🟢 Green blinking → Ready and running!
+
+**If LED stays Red:**
+- WiFi connection failed → Check credentials
+- HTTP errors → Check network/API
+- Arduino auto-retries 3 times, then reboots
+
 ## Web Interface
 
 ### Status Indicators:
-- 🟢 **Connected** - Arduino is actively polling (< 10 seconds)
-- 🔴 **Not Connected** - No heartbeat from Arduino (> 10 seconds)
-- 🔵 **Waiting...** - Processing command (toggle disabled)
+- 🟢 **Connected** - Arduino heartbeat received (< 90 seconds)
+- 🔴 **Not Connected** - No heartbeat from Arduino (> 90 seconds)
+- 🔵 **Waiting...** - Processing command (controls disabled)
+- ⏱️ **Active now / Xs ago** - Time since last Arduino heartbeat
 
 ### Features:
 1. **Manual Control** - Toggle relay ON/OFF immediately
 2. **Schedule** - Set future ON/OFF action (date + time)
 3. **Connection Status** - Real-time heartbeat monitoring
+4. **Error Logging** - Automatic error tracking and remote viewing
+5. **Auto-Recovery** - WiFi reconnection and reboot on failures
 
 ## API Configuration
 
@@ -112,19 +163,39 @@ cloud/
 ## Troubleshooting
 
 **Arduino won't connect:**
-1. Check WiFi credentials
-2. Verify API_KEY in code matches Vercel
-3. Check serial monitor for errors
+1. Check LED status:
+   - 🔴 Red = WiFi/network issue
+   - 🟣 Purple stuck = Check power/hardware
+2. Verify WiFi credentials in code
+3. Check serial monitor for detailed errors
+4. Verify API_KEY matches Vercel
 
 **Web shows "Not Connected":**
-1. Arduino needs to be powered on
-2. Wait 10 seconds for first poll
-3. Check Arduino is connected to WiFi
+1. Check Arduino LED:
+   - Should be 🟢 green (blinking) = normal
+   - If 🔴 red = network errors
+2. Arduino needs to be powered on
+3. Wait 60 seconds for first heartbeat
+4. Check Arduino serial monitor
 
 **Toggle doesn't work:**
-1. Check connection status is green
-2. Wait for Arduino to confirm (blue status)
-3. Relay should activate within 10 seconds
+1. Check web connection status is green
+2. Check Arduino LED is 🟢 green (blinking)
+3. Wait for Arduino to confirm (controls re-enable)
+4. Check error logs: `curl /api/debug.js`
+
+**LED is Red constantly:**
+1. WiFi connection failed - check credentials
+2. HTTP errors - check API_KEY
+3. Arduino will auto-retry 3 times
+4. If still red after 30s, it will reboot automatically
+
+**View Error Logs:**
+```bash
+curl https://syrenvej-varmepumpe.vercel.app/api/debug.js \
+  -H "X-API-Key: YOUR_KEY"
+```
+See ERROR_LOGGING.md for details.
 
 ## Security
 
