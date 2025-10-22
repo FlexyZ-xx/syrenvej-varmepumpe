@@ -510,6 +510,10 @@ void pollForCommands() {
                 
                 // Send immediate heartbeat after clearing schedule
                 reportStatus();
+                
+            } else if (strcmp(type, "clear_errors") == 0) {
+                Serial.println("Clear errors command received");
+                clearErrorLog();
             }
         }
     } else if (httpCode < 0) {
@@ -748,6 +752,26 @@ void logError(const char* errorMessage) {
     
     Serial.print("Error logged: ");
     Serial.println(errorMessage);
+}
+
+void clearErrorLog() {
+    Serial.println("Clearing error log...");
+    
+    // Reset buffer to empty state
+    errorLogBuffer.nextIndex = 0;
+    for (int i = 0; i < MAX_ERROR_LOGS; i++) {
+        errorLogBuffer.logs[i].valid = false;
+        errorLogBuffer.logs[i].timestamp = 0;
+        errorLogBuffer.logs[i].message[0] = '\0';
+    }
+    
+    // Save cleared state to EEPROM
+    saveErrorLog();
+    
+    Serial.println("Error log cleared from EEPROM");
+    
+    // Send immediate heartbeat to update server
+    reportStatus();
 }
 
 void loadState() {
