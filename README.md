@@ -156,7 +156,7 @@ cloud/
 │   ├── command.js          # Command endpoint (logs to stats)
 │   ├── status.js           # Status endpoint
 │   ├── debug.js            # Error log management
-│   └── stats.js            # Login/command statistics with IP tracking
+│   └── stats.js            # Login/command statistics tracking
 └── arduino/
     └── syrenvej_varmepumpe/
         └── syrenvej_varmepumpe.ino  # ESP32 firmware
@@ -226,10 +226,9 @@ curl https://syrenvej-varmepumpe.vercel.app/api/stats.js \
 **Response includes:**
 - Total logins and commands
 - Activity for last 24 hours and 7 days
-- Unique IP addresses
 - Command type breakdown
-- Recent 50 logins with timestamps and IPs
-- Recent 50 commands with timestamps, types, and IPs
+- Recent 50 logins with timestamps and user agents
+- Recent 50 commands with timestamps and types
 
 **Clear Statistics:**
 ```bash

@@ -25,19 +25,6 @@ function authenticate(req) {
     return apiKey === API_KEY;
 }
 
-// Extract client IP address
-function getClientIP(req) {
-    // Try various headers that contain client IP
-    const forwarded = req.headers['x-forwarded-for'];
-    if (forwarded) {
-        // x-forwarded-for can contain multiple IPs, get the first one
-        return forwarded.split(',')[0].trim();
-    }
-    
-    return req.headers['x-real-ip'] || 
-           req.socket?.remoteAddress || 
-           'unknown';
-}
 
 export default async function handler(req, res) {
     // Enable CORS
@@ -84,24 +71,16 @@ export default async function handler(req, res) {
             const commands24h = stats.commands.filter(c => c.timestamp > last24h).length;
             const commands7d = stats.commands.filter(c => c.timestamp > last7d).length;
 
-            // Get unique IPs
-            const uniqueIPs = new Set([
-                ...stats.logins.map(l => l.ip),
-                ...stats.commands.map(c => c.ip)
-            ]);
-
             // Get most recent events (last 50 of each)
             const recentLogins = stats.logins.slice(-50).reverse().map(l => ({
                 timestamp: l.timestamp,
                 time: new Date(l.timestamp).toISOString(),
-                ip: l.ip,
                 userAgent: l.userAgent
             }));
 
             const recentCommands = stats.commands.slice(-50).reverse().map(c => ({
                 timestamp: c.timestamp,
                 time: new Date(c.timestamp).toISOString(),
-                ip: c.ip,
                 commandType: c.commandType,
                 commandData: c.commandData
             }));
@@ -117,7 +96,6 @@ export default async function handler(req, res) {
                 summary: {
                     totalLogins: stats.logins.length,
                     totalCommands: stats.commands.length,
-                    uniqueIPs: uniqueIPs.size,
                     logins24h,
                     logins7d,
                     commands24h,
@@ -147,7 +125,6 @@ export default async function handler(req, res) {
                 return res.status(400).json({ error: 'Invalid eventType (must be "login" or "command")' });
             }
 
-            const clientIP = getClientIP(req);
             const userAgent = req.headers['user-agent'] || 'unknown';
 
             // Load current stats
@@ -172,7 +149,6 @@ export default async function handler(req, res) {
             if (eventType === 'login') {
                 stats.logins.push({
                     timestamp,
-                    ip: clientIP,
                     userAgent
                 });
                 
@@ -183,7 +159,6 @@ export default async function handler(req, res) {
             } else if (eventType === 'command') {
                 stats.commands.push({
                     timestamp,
-                    ip: clientIP,
                     commandType: commandType || 'unknown',
                     commandData: commandData || {}
                 });
@@ -198,21 +173,20 @@ export default async function handler(req, res) {
             if (hasKV) {
                 try {
                     await kv.set('arduino:stats', stats);
-                    console.log(`${eventType} event logged to KV from IP ${clientIP}`);
+                    console.log(`${eventType} event logged to KV`);
                 } catch (kvError) {
                     console.error('KV error saving stats:', kvError);
                     memoryStats = stats;
                 }
             } else {
                 memoryStats = stats;
-                console.log(`${eventType} event logged to memory from IP ${clientIP}`);
+                console.log(`${eventType} event logged to memory`);
             }
 
             return res.status(200).json({ 
                 success: true,
                 message: 'Event logged',
-                eventType,
-                ip: clientIP
+                eventType
             });
 
         } catch (error) {

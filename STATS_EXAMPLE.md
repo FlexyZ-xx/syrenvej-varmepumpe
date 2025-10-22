@@ -7,7 +7,6 @@
   "summary": {
     "totalLogins": 42,
     "totalCommands": 156,
-    "uniqueIPs": 3,
     "logins24h": 8,
     "logins7d": 35,
     "commands24h": 23,
@@ -22,13 +21,11 @@
     {
       "timestamp": 1729615234567,
       "time": "2025-10-22T14:27:14.567Z",
-      "ip": "192.168.1.100",
       "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X)"
     },
     {
       "timestamp": 1729598754321,
       "time": "2025-10-22T09:52:34.321Z",
-      "ip": "192.168.1.100",
       "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
     }
   ],
@@ -36,7 +33,6 @@
     {
       "timestamp": 1729615789012,
       "time": "2025-10-22T14:36:29.012Z",
-      "ip": "192.168.1.100",
       "commandType": "manual",
       "commandData": {
         "type": "manual",
@@ -46,7 +42,6 @@
     {
       "timestamp": 1729612345678,
       "time": "2025-10-22T13:39:05.678Z",
-      "ip": "192.168.1.100",
       "commandType": "schedule",
       "commandData": {
         "type": "schedule",
@@ -60,11 +55,6 @@
 ```
 
 ## Features
-
-### IP Address Tracking
-- Source IP addresses are automatically captured from requests
-- Uses `x-forwarded-for`, `x-real-ip`, or socket address
-- Useful for monitoring access and detecting unusual activity
 
 ### Automatic Logging
 - **Logins**: Tracked automatically when users successfully authenticate
@@ -114,16 +104,10 @@ curl https://syrenvej-varmepumpe.vercel.app/api/stats.js \
   -H "X-API-Key: YOUR_API_KEY" | jq '.recentCommands'
 ```
 
-### Count Unique IPs Today
-```bash
-curl https://syrenvej-varmepumpe.vercel.app/api/stats.js \
-  -H "X-API-Key: YOUR_API_KEY" | jq '.summary.uniqueIPs'
-```
-
 ## Privacy Considerations
 
-- IP addresses are stored for monitoring and security purposes
 - Statistics are kept for operational monitoring
+- User agents (browser/device info) are stored but not IP addresses
 - Use DELETE endpoint to clear data if needed
 - Only accessible with valid API key
 
