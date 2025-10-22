@@ -4,6 +4,8 @@
 
 The Arduino automatically logs all errors to EEPROM flash memory and **automatically sends them with every heartbeat** (every 60 seconds) to the cloud for remote debugging.
 
+**No setup required** - Uses shared memory within the API, works immediately!
+
 ## Features
 
 - **Persistent Storage**: Last 10 errors stored in EEPROM (survives reboots)
@@ -12,6 +14,7 @@ The Arduino automatically logs all errors to EEPROM flash memory and **automatic
 - **Automatic Sync**: Error log sent with every heartbeat (no manual trigger needed)
 - **Remote Access**: Retrieve error logs via API without serial console
 - **Always Fresh**: Error log updated every 60 seconds automatically
+- **No Setup Required**: Works with in-memory storage (no KV needed)
 
 ## What Gets Logged
 
@@ -25,25 +28,40 @@ The Arduino automatically logs:
 
 ## How to Retrieve Error Logs
 
-### Simple Method (Recommended)
-
-Just retrieve the latest error log - it's automatically updated every 60 seconds:
+### Option 1: Errors Only
 
 ```bash
 curl https://syrenvej-varmepumpe.vercel.app/api/debug.js \
   -H "X-API-Key: a3bad1660cef3fd1bb3e9573711dd36f3fa8c5a1dd61d1d0e3cb991e330b1fa4"
 ```
 
-That's it! No manual trigger needed. The error log is automatically synced with every Arduino heartbeat.
+Returns: `{"errors": [...]}`
+
+### Option 2: Full Status (includes errors)
+
+```bash
+curl https://syrenvej-varmepumpe.vercel.app/api/status.js \
+  -H "X-API-Key: a3bad1660cef3fd1bb3e9573711dd36f3fa8c5a1dd61d1d0e3cb991e330b1fa4"
+```
+
+Returns: `{"relayState": "on", "schedule": {...}, "isConnected": true, "errors": [...]}`
 
 ### Browser Console
 
 ```javascript
+// Get errors only
 fetch('https://syrenvej-varmepumpe.vercel.app/api/debug.js', {
     headers: {
         'X-API-Key': 'a3bad1660cef3fd1bb3e9573711dd36f3fa8c5a1dd61d1d0e3cb991e330b1fa4'
     }
 }).then(r => r.json()).then(console.log);
+
+// Or get full status (includes errors)
+fetch('https://syrenvej-varmepumpe.vercel.app/api/status.js', {
+    headers: {
+        'X-API-Key': 'a3bad1660cef3fd1bb3e9573711dd36f3fa8c5a1dd61d1d0e3cb991e330b1fa4'
+    }
+}).then(r => r.json()).then(data => console.log(data.errors));
 ```
 
 ## Error Log Format
@@ -122,10 +140,19 @@ async function requestDebugLogs() {
 
 ## Notes
 
-- Error logs persist across reboots (stored in EEPROM)
+- Error logs persist across reboots (stored in EEPROM on Arduino)
 - Maximum 10 errors stored (oldest overwritten)
 - **Error log automatically sent with every heartbeat (every 60 seconds)**
 - Timestamps are Unix timestamps (seconds since 1970)
 - Errors are logged before reboots, so you can see what triggered them
-- No manual trigger needed - just retrieve from `/api/debug.js` anytime
+- No manual trigger needed - just retrieve from `/api/debug.js` or `/api/status.js` anytime
+
+### How Shared Memory Works
+
+- Error logs stored in-memory within `/api/status.js` serverless function
+- Same function handles both POST (Arduino) and GET (user) → memory is shared
+- Vercel keeps function instances warm, so memory persists between calls
+- If instance cold-starts, Arduino will repopulate errors on next heartbeat (max 60s)
+- For persistent storage across all instances, optionally set up Vercel KV (see VERCEL_KV_SETUP.md)
+
 
