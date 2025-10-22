@@ -51,7 +51,8 @@ export default async function handler(req, res) {
                 try {
                     stats = await kv.get('arduino:stats');
                     if (!stats) {
-                        stats = memoryStats;
+                        // Initialize with empty structure if not found
+                        stats = { logins: [], commands: [] };
                     }
                 } catch (kvError) {
                     console.error('KV error, using memory fallback:', kvError);
@@ -60,6 +61,10 @@ export default async function handler(req, res) {
             } else {
                 stats = memoryStats;
             }
+            
+            // Ensure arrays exist (defensive)
+            if (!stats.logins) stats.logins = [];
+            if (!stats.commands) stats.commands = [];
 
             // Calculate summary statistics
             const now = Date.now();
@@ -133,7 +138,8 @@ export default async function handler(req, res) {
                 try {
                     stats = await kv.get('arduino:stats');
                     if (!stats) {
-                        stats = memoryStats;
+                        // Initialize with empty structure
+                        stats = { logins: [], commands: [] };
                     }
                 } catch (kvError) {
                     console.error('KV error loading stats:', kvError);
@@ -142,6 +148,10 @@ export default async function handler(req, res) {
             } else {
                 stats = memoryStats;
             }
+            
+            // Ensure arrays exist (defensive)
+            if (!stats.logins) stats.logins = [];
+            if (!stats.commands) stats.commands = [];
 
             // Add new event
             const timestamp = Date.now();
