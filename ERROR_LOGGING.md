@@ -2,14 +2,16 @@
 
 ## Overview
 
-The Arduino now automatically logs all errors to EEPROM flash memory and can send them to the cloud for remote debugging.
+The Arduino automatically logs all errors to EEPROM flash memory and **automatically sends them with every heartbeat** (every 60 seconds) to the cloud for remote debugging.
 
 ## Features
 
 - **Persistent Storage**: Last 10 errors stored in EEPROM (survives reboots)
 - **Timestamps**: Each error includes Unix timestamp
 - **Circular Buffer**: Oldest errors automatically overwritten
+- **Automatic Sync**: Error log sent with every heartbeat (no manual trigger needed)
 - **Remote Access**: Retrieve error logs via API without serial console
+- **Always Fresh**: Error log updated every 60 seconds automatically
 
 ## What Gets Logged
 
@@ -23,44 +25,20 @@ The Arduino automatically logs:
 
 ## How to Retrieve Error Logs
 
-### Method 1: Trigger Arduino to Send Logs
+### Simple Method (Recommended)
 
-Send a debug command to make Arduino push its error log:
-
-```bash
-curl -X POST https://syrenvej-varmepumpe.vercel.app/api/command.js \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: a3bad1660cef3fd1bb3e9573711dd36f3fa8c5a1dd61d1d0e3cb991e330b1fa4" \
-  -d '{"type": "debug"}'
-```
-
-Arduino will receive this command on next poll and send its error log to the server.
-
-### Method 2: Retrieve from Server
-
-After Arduino has sent the logs (or anytime to see cached logs):
+Just retrieve the latest error log - it's automatically updated every 60 seconds:
 
 ```bash
-curl -X GET https://syrenvej-varmepumpe.vercel.app/api/debug.js \
+curl https://syrenvej-varmepumpe.vercel.app/api/debug.js \
   -H "X-API-Key: a3bad1660cef3fd1bb3e9573711dd36f3fa8c5a1dd61d1d0e3cb991e330b1fa4"
 ```
 
-### Method 3: Browser Console
+That's it! No manual trigger needed. The error log is automatically synced with every Arduino heartbeat.
 
-Open browser console on your web UI and run:
+### Browser Console
 
 ```javascript
-// Trigger Arduino to send logs
-fetch('https://syrenvej-varmepumpe.vercel.app/api/command.js', {
-    method: 'POST',
-    headers: {
-        'Content-Type': 'application/json',
-        'X-API-Key': 'a3bad1660cef3fd1bb3e9573711dd36f3fa8c5a1dd61d1d0e3cb991e330b1fa4'
-    },
-    body: JSON.stringify({type: 'debug'})
-});
-
-// Wait ~1 minute for Arduino to poll and send logs, then retrieve:
 fetch('https://syrenvej-varmepumpe.vercel.app/api/debug.js', {
     headers: {
         'X-API-Key': 'a3bad1660cef3fd1bb3e9573711dd36f3fa8c5a1dd61d1d0e3cb991e330b1fa4'
@@ -125,26 +103,19 @@ You can add a debug panel to your web UI:
 async function requestDebugLogs() {
     const apiKey = 'a3bad1660cef3fd1bb3e9573711dd36f3fa8c5a1dd61d1d0e3cb991e330b1fa4';
     
-    // Trigger Arduino to send logs
-    await fetch('https://syrenvej-varmepumpe.vercel.app/api/command.js', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-API-Key': apiKey
-        },
-        body: JSON.stringify({type: 'debug'})
+    // Simply retrieve the error log (automatically updated every 60s)
+    document.getElementById('errorLogs').textContent = 'Loading...';
+    
+    const response = await fetch('https://syrenvej-varmepumpe.vercel.app/api/debug.js', {
+        headers: { 'X-API-Key': apiKey }
     });
+    const data = await response.json();
     
-    // Wait for Arduino to send (it polls every 1 minute)
-    document.getElementById('errorLogs').textContent = 'Waiting for Arduino to send logs (up to 1 minute)...';
-    
-    setTimeout(async () => {
-        const response = await fetch('https://syrenvej-varmepumpe.vercel.app/api/debug.js', {
-            headers: { 'X-API-Key': apiKey }
-        });
-        const data = await response.json();
+    if (data.errors.length === 0) {
+        document.getElementById('errorLogs').textContent = 'No errors logged ✅';
+    } else {
         document.getElementById('errorLogs').textContent = JSON.stringify(data, null, 2);
-    }, 65000); // Wait 65 seconds
+    }
 }
 </script>
 ```
@@ -153,7 +124,8 @@ async function requestDebugLogs() {
 
 - Error logs persist across reboots (stored in EEPROM)
 - Maximum 10 errors stored (oldest overwritten)
-- Arduino polls for debug command every 1 minute
+- **Error log automatically sent with every heartbeat (every 60 seconds)**
 - Timestamps are Unix timestamps (seconds since 1970)
 - Errors are logged before reboots, so you can see what triggered them
+- No manual trigger needed - just retrieve from `/api/debug.js` anytime
 
