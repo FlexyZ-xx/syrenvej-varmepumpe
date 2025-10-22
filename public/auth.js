@@ -158,11 +158,30 @@ if (!isAuthenticated()) {
         
         input.focus();
         
-        form.addEventListener('submit', (e) => {
+        form.addEventListener('submit', async (e) => {
             e.preventDefault();
             
             if (input.value === CORRECT_PASSWORD) {
                 localStorage.setItem(AUTH_KEY, JSON.stringify({ timestamp: Date.now() }));
+                
+                // Log successful login to stats
+                try {
+                    const API_KEY = 'a3bad1660cef3fd1bb3e9573711dd36f3fa8c5a1dd61d1d0e3cb991e330b1fa4';
+                    await fetch('/api/stats.js', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-API-Key': API_KEY
+                        },
+                        body: JSON.stringify({
+                            eventType: 'login'
+                        })
+                    });
+                } catch (err) {
+                    // Don't block login if stats logging fails
+                    console.error('Failed to log login:', err);
+                }
+                
                 location.reload();
             } else {
                 error.textContent = '❌ Incorrect password';

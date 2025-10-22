@@ -153,8 +153,10 @@ cloud/
 │   ├── styles.css          # Styling
 │   └── auth.js             # Password protection
 ├── api/
-│   ├── command.js          # Command endpoint
-│   └── status.js           # Status endpoint
+│   ├── command.js          # Command endpoint (logs to stats)
+│   ├── status.js           # Status endpoint
+│   ├── debug.js            # Error log management
+│   └── stats.js            # Login/command statistics with IP tracking
 └── arduino/
     └── syrenvej_varmepumpe/
         └── syrenvej_varmepumpe.ino  # ESP32 firmware
@@ -190,12 +192,109 @@ cloud/
 3. Arduino will auto-retry 3 times
 4. If still red after 30s, it will reboot automatically
 
+## API Endpoints Reference
+
+All API endpoints require authentication via `X-API-Key` header.
+
+### Debug Endpoint (`/api/debug.js`)
+
 **View Error Logs:**
 ```bash
+# Get all error logs
 curl https://syrenvej-varmepumpe.vercel.app/api/debug.js \
-  -H "X-API-Key: YOUR_KEY"
+  -H "X-API-Key: YOUR_API_KEY"
 ```
+
+**Clear Error Logs:**
+```bash
+# Clear all error logs (sends clear command to Arduino)
+curl -X DELETE https://syrenvej-varmepumpe.vercel.app/api/debug.js \
+  -H "X-API-Key: YOUR_API_KEY"
+```
+
 See ERROR_LOGGING.md for details.
+
+### Statistics Endpoint (`/api/stats.js`)
+
+**View Statistics:**
+```bash
+# Get login and command statistics with summary
+curl https://syrenvej-varmepumpe.vercel.app/api/stats.js \
+  -H "X-API-Key: YOUR_API_KEY"
+```
+
+**Response includes:**
+- Total logins and commands
+- Activity for last 24 hours and 7 days
+- Unique IP addresses
+- Command type breakdown
+- Recent 50 logins with timestamps and IPs
+- Recent 50 commands with timestamps, types, and IPs
+
+**Clear Statistics:**
+```bash
+# Clear all statistics
+curl -X DELETE https://syrenvej-varmepumpe.vercel.app/api/stats.js \
+  -H "X-API-Key: YOUR_API_KEY"
+```
+
+**Manual Log Entry (optional):**
+```bash
+# Log a login event
+curl -X POST https://syrenvej-varmepumpe.vercel.app/api/stats.js \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"eventType":"login"}'
+
+# Log a command event
+curl -X POST https://syrenvej-varmepumpe.vercel.app/api/stats.js \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"eventType":"command","commandType":"manual","commandData":{"action":"on"}}'
+```
+
+Note: Login and command events are automatically tracked when using the web interface.
+
+### Status Endpoint (`/api/status.js`)
+
+**Get Current State:**
+```bash
+# View current relay state, schedule, and connection status
+curl https://syrenvej-varmepumpe.vercel.app/api/status.js \
+  -H "X-API-Key: YOUR_API_KEY"
+```
+
+### Command Endpoint (`/api/command.js`)
+
+**Send Manual Command:**
+```bash
+# Turn relay ON
+curl -X POST https://syrenvej-varmepumpe.vercel.app/api/command.js \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"type":"manual","action":"on"}'
+
+# Turn relay OFF
+curl -X POST https://syrenvej-varmepumpe.vercel.app/api/command.js \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"type":"manual","action":"off"}'
+```
+
+**Set Schedule:**
+```bash
+# Schedule relay to turn ON at specific time
+curl -X POST https://syrenvej-varmepumpe.vercel.app/api/command.js \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"type":"schedule","action":"on","dateTime":"2025-10-23T14:30:00"}'
+
+# Cancel schedule
+curl -X POST https://syrenvej-varmepumpe.vercel.app/api/command.js \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"type":"cancel_schedule"}'
+```
 
 ## Security
 

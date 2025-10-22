@@ -60,6 +60,26 @@ export default async function handler(req, res) {
                 console.log('Command stored in memory (KV not configured):', cmd);
             }
 
+            // Log command to stats (don't wait for it, fire and forget)
+            try {
+                const statsUrl = `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}/api/stats.js`;
+                fetch(statsUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': API_KEY
+                    },
+                    body: JSON.stringify({
+                        eventType: 'command',
+                        commandType: command.type,
+                        commandData: command
+                    })
+                }).catch(err => console.error('Failed to log command to stats:', err));
+            } catch (statsError) {
+                // Don't fail the command if stats logging fails
+                console.error('Error logging to stats:', statsError);
+            }
+
             return res.status(200).json({ 
                 success: true,
                 message: 'Command queued'
