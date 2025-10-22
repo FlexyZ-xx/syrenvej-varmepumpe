@@ -46,6 +46,19 @@ curl https://syrenvej-varmepumpe.vercel.app/api/status.js \
 
 Returns: `{"relayState": "on", "schedule": {...}, "isConnected": true, "errors": [...]}`
 
+### Option 3: Clear Error Logs
+
+Clear both server storage and Arduino EEPROM:
+
+```bash
+curl -X DELETE https://syrenvej-varmepumpe.vercel.app/api/debug.js \
+  -H "X-API-Key: a3bad1660cef3fd1bb3e9573711dd36f3fa8c5a1dd61d1d0e3cb991e330b1fa4"
+```
+
+Returns: `{"success": true, "message": "Clear command sent to Arduino..."}`
+
+**Note**: Arduino polls every 60 seconds, so errors will be cleared within 1 minute.
+
 ### Browser Console
 
 ```javascript
@@ -62,6 +75,14 @@ fetch('https://syrenvej-varmepumpe.vercel.app/api/status.js', {
         'X-API-Key': 'a3bad1660cef3fd1bb3e9573711dd36f3fa8c5a1dd61d1d0e3cb991e330b1fa4'
     }
 }).then(r => r.json()).then(data => console.log(data.errors));
+
+// Clear error logs (clears both server and Arduino EEPROM)
+fetch('https://syrenvej-varmepumpe.vercel.app/api/debug.js', {
+    method: 'DELETE',
+    headers: {
+        'X-API-Key': 'a3bad1660cef3fd1bb3e9573711dd36f3fa8c5a1dd61d1d0e3cb991e330b1fa4'
+    }
+}).then(r => r.json()).then(console.log);
 ```
 
 ## Error Log Format
@@ -115,17 +136,18 @@ You can add a debug panel to your web UI:
 
 ```html
 <button onclick="requestDebugLogs()">View Error Logs</button>
+<button onclick="clearDebugLogs()">Clear Error Logs</button>
 <pre id="errorLogs"></pre>
 
 <script>
+const API_KEY = 'a3bad1660cef3fd1bb3e9573711dd36f3fa8c5a1dd61d1d0e3cb991e330b1fa4';
+const API_HOST = 'https://syrenvej-varmepumpe.vercel.app';
+
 async function requestDebugLogs() {
-    const apiKey = 'a3bad1660cef3fd1bb3e9573711dd36f3fa8c5a1dd61d1d0e3cb991e330b1fa4';
-    
-    // Simply retrieve the error log (automatically updated every 60s)
     document.getElementById('errorLogs').textContent = 'Loading...';
     
-    const response = await fetch('https://syrenvej-varmepumpe.vercel.app/api/debug.js', {
-        headers: { 'X-API-Key': apiKey }
+    const response = await fetch(`${API_HOST}/api/debug.js`, {
+        headers: { 'X-API-Key': API_KEY }
     });
     const data = await response.json();
     
@@ -133,6 +155,27 @@ async function requestDebugLogs() {
         document.getElementById('errorLogs').textContent = 'No errors logged ✅';
     } else {
         document.getElementById('errorLogs').textContent = JSON.stringify(data, null, 2);
+    }
+}
+
+async function clearDebugLogs() {
+    if (!confirm('Clear all error logs from server and Arduino EEPROM?')) {
+        return;
+    }
+    
+    document.getElementById('errorLogs').textContent = 'Sending clear command...';
+    
+    const response = await fetch(`${API_HOST}/api/debug.js`, {
+        method: 'DELETE',
+        headers: { 'X-API-Key': API_KEY }
+    });
+    const data = await response.json();
+    
+    if (data.success) {
+        document.getElementById('errorLogs').textContent = 
+            'Clear command sent! Errors will be cleared within 60 seconds.\nClick "View Error Logs" to refresh.';
+    } else {
+        document.getElementById('errorLogs').textContent = 'Error: ' + data.message;
     }
 }
 </script>
