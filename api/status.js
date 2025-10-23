@@ -93,17 +93,30 @@ export default async function handler(req, res) {
                                            newSchedule.executed === true && 
                                            newSchedule.action === newState;
                 
-                // Build schedule datetime for deduplication
+                // Build schedule datetime for deduplication (check both memory and KV)
                 let scheduleTimestamp = null;
                 if (wasScheduleExecution && newSchedule) {
                     const scheduledDateTime = newSchedule.dateTime || 
                                            `${newSchedule.year}-${String(newSchedule.month).padStart(2, '0')}-${String(newSchedule.day).padStart(2, '0')}T${String(newSchedule.hour).padStart(2, '0')}:${String(newSchedule.minute).padStart(2, '0')}:00`;
                     scheduleTimestamp = new Date(scheduledDateTime).getTime();
                     
-                    // Check if we've already logged this schedule execution
+                    // Check memory first (fast)
                     if (scheduleTimestamp === lastLoggedExecutionTimestamp) {
-                        console.log('Schedule execution already logged, skipping duplicate');
-                        wasScheduleExecution = false; // Treat as manual to avoid duplicate
+                        console.log('Schedule execution already logged (memory), skipping duplicate');
+                        wasScheduleExecution = false;
+                    } else if (hasKV) {
+                        // Check KV for persistent tracking (handles cold starts)
+                        try {
+                            const loggedKey = `arduino:schedule_logged:${scheduleTimestamp}`;
+                            const alreadyLogged = await kvWithTimeout(() => kv.get(loggedKey));
+                            if (alreadyLogged) {
+                                console.log('Schedule execution already logged (KV), skipping duplicate');
+                                wasScheduleExecution = false;
+                                lastLoggedExecutionTimestamp = scheduleTimestamp; // Update memory cache
+                            }
+                        } catch (kvError) {
+                            console.log('KV check failed, allowing duplicate (better than missing):', kvError.message);
+                        }
                     }
                 }
                 
@@ -119,7 +132,14 @@ export default async function handler(req, res) {
                         commandData.scheduledDateTime = newSchedule.dateTime || 
                                                        `${newSchedule.year}-${String(newSchedule.month).padStart(2, '0')}-${String(newSchedule.day).padStart(2, '0')}T${String(newSchedule.hour).padStart(2, '0')}:${String(newSchedule.minute).padStart(2, '0')}:00`;
                         commandData.scheduleAction = newSchedule.action;
-                        lastLoggedExecutionTimestamp = scheduleTimestamp; // Mark as logged
+                        lastLoggedExecutionTimestamp = scheduleTimestamp; // Mark as logged in memory
+                        
+                        // Also mark in KV for persistence (fire and forget, with 30 day expiry)
+                        if (hasKV && scheduleTimestamp) {
+                            const loggedKey = `arduino:schedule_logged:${scheduleTimestamp}`;
+                            kvWithTimeout(() => kv.set(loggedKey, true, { ex: 30 * 24 * 60 * 60 })) // 30 days
+                                .catch(err => console.log('Failed to mark schedule as logged in KV:', err.message));
+                        }
                     }
                 }
                 
