@@ -20,19 +20,19 @@
   "recentLogins": [
     {
       "timestamp": 1729615234567,
-      "time": "2025-10-22T14:27:14.567Z",
+      "time": "22/10/2025, 14:27:14 CEST",
       "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X)"
     },
     {
       "timestamp": 1729598754321,
-      "time": "2025-10-22T09:52:34.321Z",
+      "time": "22/10/2025, 09:52:34 CEST",
       "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
     }
   ],
   "recentCommands": [
     {
       "timestamp": 1729615789012,
-      "time": "2025-10-22T14:36:29.012Z",
+      "time": "22/10/2025, 14:36:29 CEST",
       "commandType": "manual",
       "commandData": {
         "type": "manual",
@@ -41,7 +41,7 @@
     },
     {
       "timestamp": 1729612345678,
-      "time": "2025-10-22T13:39:05.678Z",
+      "time": "22/10/2025, 13:39:05 CEST",
       "commandType": "schedule",
       "commandData": {
         "type": "schedule",

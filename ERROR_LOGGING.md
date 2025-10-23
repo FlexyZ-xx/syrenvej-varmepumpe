@@ -92,12 +92,12 @@ fetch('https://syrenvej-varmepumpe.vercel.app/api/debug.js', {
   "errors": [
     {
       "timestamp": 1729612345,
-      "time": "2025-10-22T14:32:25.000Z",
+      "time": "22/10/2025, 14:32:25 CEST",
       "message": "WiFi disconnected (attempt 2/3)"
     },
     {
       "timestamp": 1729612350,
-      "time": "2025-10-22T14:32:30.000Z",
+      "time": "22/10/2025, 14:32:30 CEST",
       "message": "Poll HTTP error: -11"
     }
   ]
