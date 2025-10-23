@@ -52,6 +52,16 @@
     {
       "timestamp": 1729612345678,
       "time": "22/10/2025, 13:39:05 CEST",
+      "commandType": "schedule_sent",
+      "commandData": {
+        "action": "on",
+        "scheduledDateTime": "2025-10-23T08:00:00",
+        "status": "waiting"
+      }
+    },
+    {
+      "timestamp": 1729612360000,
+      "time": "22/10/2025, 13:39:20 CEST",
       "commandType": "schedule_set",
       "commandData": {
         "action": "on",
@@ -95,11 +105,13 @@
 
 ### Command Types
 The endpoint tracks different command types:
-- `sent`: Command sent from web UI (status: waiting)
+- `sent`: Manual command sent from web UI (status: waiting)
 - `executed`: Manual command executed by Arduino
-- `schedule_set`: Schedule was created/set (includes scheduled datetime)
+- `schedule_sent`: Schedule command sent from web UI (includes **scheduledDateTime** and status: waiting)
+- `schedule_set`: Schedule was confirmed by Arduino (includes scheduled datetime)
 - `schedule_executed`: Schedule was executed by Arduino (includes scheduled datetime)
-- `schedule_cancelled`: Schedule was cancelled before execution (includes scheduled datetime)
+- `schedule_cancel_sent`: Schedule cancel command sent from web UI
+- `schedule_cancelled`: Schedule was cancelled and confirmed by Arduino (includes scheduled datetime)
 
 ## Example Queries
 
