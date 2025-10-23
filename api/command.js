@@ -70,9 +70,33 @@ export default async function handler(req, res) {
                 console.log('Command stored in memory (KV not configured):', cmd);
             }
 
-            // Log command to stats as "sent" (await to ensure it completes before function terminates)
+            // Log command to stats (await to ensure it completes before function terminates)
             try {
                 const statsUrl = `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}/api/stats.js`;
+                
+                // Determine command type and data based on command type
+                let commandType = 'sent';
+                let commandData = {
+                    type: command.type,
+                    action: command.action,
+                    status: 'waiting'
+                };
+                
+                // Special handling for schedule commands
+                if (command.type === 'schedule' && command.dateTime) {
+                    commandType = 'schedule_sent';
+                    commandData = {
+                        action: command.action,
+                        scheduledDateTime: command.dateTime,
+                        status: 'waiting'
+                    };
+                } else if (command.type === 'cancel_schedule') {
+                    commandType = 'schedule_cancel_sent';
+                    commandData = {
+                        status: 'waiting'
+                    };
+                }
+                
                 const statsResponse = await fetch(statsUrl, {
                     method: 'POST',
                     headers: {
@@ -81,12 +105,8 @@ export default async function handler(req, res) {
                     },
                     body: JSON.stringify({
                         eventType: 'command',
-                        commandType: 'sent',
-                        commandData: {
-                            type: command.type,
-                            action: command.action,
-                            status: 'waiting'
-                        }
+                        commandType: commandType,
+                        commandData: commandData
                     })
                 });
                 
