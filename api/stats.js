@@ -14,8 +14,18 @@ let memoryStats = {
     commands: []
 };
 
-// Check if KV is configured
-const hasKV = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+// Check if KV is configured and clean environment variables
+// Sometimes Vercel env vars can have whitespace/tab issues
+const cleanUrl = process.env.KV_REST_API_URL?.trim().replace(/\t/g, '').replace(/\s/g, '');
+const cleanToken = process.env.KV_REST_API_TOKEN?.trim().replace(/\t/g, '').replace(/\s/g, '');
+const hasKV = !!(cleanUrl && cleanToken);
+
+// Log KV status on cold start
+if (hasKV) {
+    console.log('KV configured with URL:', cleanUrl?.substring(0, 30) + '...');
+} else {
+    console.warn('KV not configured - using in-memory storage (will not persist)');
+}
 
 // API Key Authentication
 const API_KEY = (process.env.API_KEY || 'change-me-in-production').trim();
