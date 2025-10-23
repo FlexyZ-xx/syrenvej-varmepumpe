@@ -346,8 +346,8 @@ function schedulesMatch(actual, expected) {
 function updateScheduleDisplay(schedule) {
     const container = document.getElementById('currentSchedule');
     
-    // Only clear if schedule is explicitly null or empty (not just missing from response)
-    if (!schedule || !schedule.year || schedule.year === 0) {
+    // Clear display if schedule is null, empty, inactive, or already executed
+    if (!schedule || !schedule.year || schedule.year === 0 || !schedule.active || schedule.executed) {
         container.innerHTML = '<div style="color: #718096;">No schedule set</div>';
         container.classList.remove('has-schedule', 'executed');
         currentSchedule = null;
@@ -367,19 +367,14 @@ function updateScheduleDisplay(schedule) {
     const dateStr = `${dayName}, ${schedule.day} ${monthName} ${schedule.year}`;
     
     const actionStr = schedule.action === 'on' ? 'ON' : 'OFF';
-    const statusStr = schedule.executed ? '(Already executed)' : '';
     
     container.innerHTML = `
         <div class="schedule-time">${dateStr}</div>
-        <div class="schedule-time">${timeStr} - ${actionStr} ${statusStr}</div>
+        <div class="schedule-time">${timeStr} - ${actionStr}</div>
     `;
     
     container.classList.add('has-schedule');
-    if (schedule.executed) {
-        container.classList.add('executed');
-    } else {
-        container.classList.remove('executed');
-    }
+    container.classList.remove('executed');
 }
 
 function updateArduinoStatus(isConnected) {
