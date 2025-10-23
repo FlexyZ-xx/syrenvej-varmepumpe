@@ -154,16 +154,18 @@ export default async function handler(req, res) {
 
             // Load current stats
             let stats;
+            let kvLoadFailed = false;  // Track if KV load failed
             if (hasKV) {
                 try {
                     stats = await kvWithTimeout(() => kv.get('arduino:stats'));
                     if (!stats) {
-                        // Initialize with empty structure
+                        // Initialize with empty structure (KV is empty, not failed)
                         stats = { logins: [], commands: [] };
                     }
                 } catch (kvError) {
                     console.error('KV error loading stats:', kvError.message);
-                    stats = memoryStats;
+                    kvLoadFailed = true;  // Mark that KV failed
+                    stats = memoryStats;  // Use stale memory as fallback (read-only)
                 }
             } else {
                 stats = memoryStats;
@@ -199,18 +201,23 @@ export default async function handler(req, res) {
                 }
             }
 
-            // Save updated stats
-            if (hasKV) {
+            // Save updated stats (only if KV load succeeded or we're using in-memory mode)
+            if (hasKV && !kvLoadFailed) {
                 try {
                     await kvWithTimeout(() => kv.set('arduino:stats', stats));
                     console.log(`${eventType} event logged to KV`);
+                    memoryStats = stats;  // Update memory cache after successful KV save
                 } catch (kvError) {
                     console.error('KV error saving stats:', kvError.message);
-                    memoryStats = stats;
+                    // Don't save to memory if KV save fails - avoid overwriting on next attempt
                 }
-            } else {
+            } else if (!hasKV) {
                 memoryStats = stats;
                 console.log(`${eventType} event logged to memory`);
+            } else {
+                // KV load failed - event added to stale memory but not saved
+                console.warn(`${eventType} event NOT saved (KV unavailable, avoiding data loss)`);
+                memoryStats = stats;  // Update memory for next attempt
             }
 
             return res.status(200).json({ 
