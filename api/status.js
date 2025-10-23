@@ -126,17 +126,23 @@ export default async function handler(req, res) {
             // This detects offline Arduino faster while still being very safe for network delays
             const isConnected = arduinoState.lastUpdate ? (Date.now() - arduinoState.lastUpdate) < 90000 : false;
             
-            // Get error log from memory (shared within this function's context)
-            let errorLog = memoryErrorLog;
-            if (hasKV) {
-                try {
-                    const storedLog = await kvWithTimeout(() => kv.get('arduino:error_log'));
-                    if (storedLog) {
-                        errorLog = storedLog;
+            // Only fetch error log if explicitly requested (via query param)
+            // This makes status checks MUCH faster (no extra KV call)
+            let errorLog = { errors: [] };
+            const includeErrors = req.query?.errors === 'true';
+            
+            if (includeErrors) {
+                errorLog = memoryErrorLog;
+                if (hasKV) {
+                    try {
+                        const storedLog = await kvWithTimeout(() => kv.get('arduino:error_log'));
+                        if (storedLog) {
+                            errorLog = storedLog;
+                        }
+                    } catch (kvError) {
+                        console.error('KV error reading error log:', kvError.message);
+                        // Fall back to memory
                     }
-                } catch (kvError) {
-                    console.error('KV error reading error log:', kvError.message);
-                    // Fall back to memory
                 }
             }
             
@@ -145,7 +151,7 @@ export default async function handler(req, res) {
                 schedule: arduinoState.schedule,
                 lastUpdate: arduinoState.lastUpdate,
                 isConnected: isConnected,
-                errors: errorLog.errors || []  // Include error log in status response
+                errors: errorLog.errors || []  // Include error log only if requested
             });
         } catch (error) {
             console.error('Error fetching state:', error);
