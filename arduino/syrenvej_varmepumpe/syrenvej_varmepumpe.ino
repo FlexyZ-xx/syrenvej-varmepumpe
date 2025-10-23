@@ -506,6 +506,7 @@ void pollForCommands() {
             } else if (strcmp(type, "clear_schedule") == 0) {
                 Serial.println("Clear schedule command received");
                 currentSchedule.active = false;
+                currentSchedule.executed = false;  // Clear executed flag when manually cancelled
                 saveSchedule();
                 
                 // Send immediate heartbeat after clearing schedule
@@ -578,8 +579,11 @@ void reportStatus() {
     DynamicJsonDocument doc(4096);
     doc["relayState"] = relayState ? "on" : "off";
     
-    if (currentSchedule.active) {
+    // Always send schedule if it exists (active or recently executed)
+    // Send null only if schedule was never set or was manually cleared
+    if (currentSchedule.active || currentSchedule.executed) {
         JsonObject schedule = doc.createNestedObject("schedule");
+        schedule["active"] = currentSchedule.active;
         schedule["year"] = currentSchedule.year;
         schedule["month"] = currentSchedule.month;
         schedule["day"] = currentSchedule.day;
@@ -677,9 +681,9 @@ void checkSchedule() {
         setRelay(newState);
         saveRelayState();
         
-        // Clear schedule after execution
+        // Mark schedule as executed (keep data for stats tracking)
         currentSchedule.active = false;
-        currentSchedule.executed = false;
+        currentSchedule.executed = true;  // Mark as executed for detection
         saveSchedule();
         
         // Send immediate heartbeat after scheduled execution
