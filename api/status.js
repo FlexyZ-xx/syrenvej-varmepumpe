@@ -88,35 +88,44 @@ export default async function handler(req, res) {
                 console.log(`Relay state changed: ${previousState} → ${newState}`);
                 
                 // Determine if this was a schedule execution or manual command
-                // ONLY trust the Arduino's explicit "executed" flag - this is the most reliable indicator
-                let wasScheduleExecution = newSchedule && 
-                                           newSchedule.executed === true && 
-                                           newSchedule.action === newState;
-                
-                // Build schedule datetime for deduplication (check both memory and KV)
+                // Check if schedule exists with executed flag AND action matches
+                let wasScheduleExecution = false;
                 let scheduleTimestamp = null;
-                if (wasScheduleExecution && newSchedule) {
+                
+                if (newSchedule && newSchedule.executed === true && newSchedule.action === newState) {
+                    // Build schedule datetime for deduplication check
                     const scheduledDateTime = newSchedule.dateTime || 
                                            `${newSchedule.year}-${String(newSchedule.month).padStart(2, '0')}-${String(newSchedule.day).padStart(2, '0')}T${String(newSchedule.hour).padStart(2, '0')}:${String(newSchedule.minute).padStart(2, '0')}:00`;
                     scheduleTimestamp = new Date(scheduledDateTime).getTime();
                     
+                    console.log(`Checking schedule execution: timestamp=${scheduleTimestamp}, lastLogged=${lastLoggedExecutionTimestamp}`);
+                    
                     // Check memory first (fast)
                     if (scheduleTimestamp === lastLoggedExecutionTimestamp) {
-                        console.log('Schedule execution already logged (memory), skipping duplicate');
+                        console.log('Schedule execution already logged (memory), treating as manual');
                         wasScheduleExecution = false;
                     } else if (hasKV) {
                         // Check KV for persistent tracking (handles cold starts)
                         try {
                             const loggedKey = `arduino:schedule_logged:${scheduleTimestamp}`;
-                            const alreadyLogged = await kvWithTimeout(() => kv.get(loggedKey));
+                            const alreadyLogged = await kvWithTimeout(() => kv.get(loggedKey), 1000);
+                            console.log(`KV check for ${loggedKey}: ${alreadyLogged ? 'FOUND' : 'NOT FOUND'}`);
                             if (alreadyLogged) {
-                                console.log('Schedule execution already logged (KV), skipping duplicate');
+                                console.log('Schedule execution already logged (KV), treating as manual');
                                 wasScheduleExecution = false;
                                 lastLoggedExecutionTimestamp = scheduleTimestamp; // Update memory cache
+                            } else {
+                                // First time seeing this schedule execution
+                                wasScheduleExecution = true;
                             }
                         } catch (kvError) {
-                            console.log('KV check failed, allowing duplicate (better than missing):', kvError.message);
+                            console.error('KV check failed:', kvError.message);
+                            // If KV fails, treat as manual to avoid false schedule_executed
+                            wasScheduleExecution = false;
                         }
+                    } else {
+                        // No KV, use memory only
+                        wasScheduleExecution = true;
                     }
                 }
                 
