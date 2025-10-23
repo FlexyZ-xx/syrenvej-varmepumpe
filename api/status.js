@@ -10,8 +10,8 @@ let memoryState = {
 
 let memoryErrorLog = { errors: [] };
 
-// Track last command sent to detect execution
-let lastCommandSent = null;
+// Track last state and schedule to detect changes
+let lastKnownSchedule = null;
 
 // Check if KV is configured
 const hasKV = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
@@ -55,11 +55,13 @@ export default async function handler(req, res) {
             const state = req.body;
             
             const previousState = memoryState.relayState; // Track previous state
+            const previousSchedule = lastKnownSchedule; // Track previous schedule
             const newState = state.relayState || 'off';
+            const newSchedule = state.schedule || null;
             
             const arduinoState = {
                 relayState: newState,
-                schedule: state.schedule || null,
+                schedule: newSchedule,
                 lastUpdate: Date.now()
             };
 
@@ -77,9 +79,34 @@ export default async function handler(req, res) {
                 console.log('State stored in memory (KV not configured):', arduinoState);
             }
             
+            // Update last known schedule
+            lastKnownSchedule = newSchedule;
+            
             // Check if relay state changed - log execution to stats
             if (previousState !== newState) {
                 console.log(`Relay state changed: ${previousState} → ${newState}`);
+                
+                // Determine if this was a schedule execution or manual command
+                // Schedule was active before and now it's gone/inactive = schedule executed
+                const wasScheduleExecution = previousSchedule && previousSchedule.active && 
+                                           (!newSchedule || !newSchedule.active);
+                
+                let commandType = 'executed';
+                let commandData = {
+                    action: newState,
+                    previousState: previousState
+                };
+                
+                if (wasScheduleExecution) {
+                    commandType = 'schedule_executed';
+                    commandData = {
+                        action: newState,
+                        previousState: previousState,
+                        scheduledDateTime: previousSchedule.dateTime || 
+                                         `${previousSchedule.year}-${String(previousSchedule.month).padStart(2, '0')}-${String(previousSchedule.day).padStart(2, '0')}T${String(previousSchedule.hour).padStart(2, '0')}:${String(previousSchedule.minute).padStart(2, '0')}:00`,
+                        scheduleAction: previousSchedule.action
+                    };
+                }
                 
                 // Log to stats (fire and forget, don't block Arduino heartbeat)
                 try {
@@ -92,15 +119,68 @@ export default async function handler(req, res) {
                         },
                         body: JSON.stringify({
                             eventType: 'command',
-                            commandType: 'executed',
-                            commandData: {
-                                action: newState,
-                                previousState: previousState
-                            }
+                            commandType: commandType,
+                            commandData: commandData
                         })
                     }).catch(err => console.error('Failed to log execution to stats:', err));
                 } catch (statsError) {
                     console.error('Error logging execution to stats:', statsError);
+                }
+            }
+            
+            // Also check if schedule was set (sent from UI)
+            if (!previousSchedule && newSchedule && newSchedule.active) {
+                console.log('Schedule was set:', newSchedule);
+                
+                // Log schedule creation to stats
+                try {
+                    const statsUrl = `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}/api/stats.js`;
+                    fetch(statsUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-API-Key': API_KEY
+                        },
+                        body: JSON.stringify({
+                            eventType: 'command',
+                            commandType: 'schedule_set',
+                            commandData: {
+                                action: newSchedule.action,
+                                scheduledDateTime: newSchedule.dateTime || 
+                                                 `${newSchedule.year}-${String(newSchedule.month).padStart(2, '0')}-${String(newSchedule.day).padStart(2, '0')}T${String(newSchedule.hour).padStart(2, '0')}:${String(newSchedule.minute).padStart(2, '0')}:00`
+                            }
+                        })
+                    }).catch(err => console.error('Failed to log schedule set to stats:', err));
+                } catch (statsError) {
+                    console.error('Error logging schedule set to stats:', statsError);
+                }
+            }
+            
+            // Check if schedule was cancelled
+            if (previousSchedule && previousSchedule.active && (!newSchedule || !newSchedule.active) && previousState === newState) {
+                console.log('Schedule was cancelled');
+                
+                // Log schedule cancellation to stats
+                try {
+                    const statsUrl = `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}/api/stats.js`;
+                    fetch(statsUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-API-Key': API_KEY
+                        },
+                        body: JSON.stringify({
+                            eventType: 'command',
+                            commandType: 'schedule_cancelled',
+                            commandData: {
+                                scheduledAction: previousSchedule.action,
+                                scheduledDateTime: previousSchedule.dateTime || 
+                                                 `${previousSchedule.year}-${String(previousSchedule.month).padStart(2, '0')}-${String(previousSchedule.day).padStart(2, '0')}T${String(previousSchedule.hour).padStart(2, '0')}:${String(previousSchedule.minute).padStart(2, '0')}:00`
+                            }
+                        })
+                    }).catch(err => console.error('Failed to log schedule cancelled to stats:', err));
+                } catch (statsError) {
+                    console.error('Error logging schedule cancelled to stats:', statsError);
                 }
             }
 
