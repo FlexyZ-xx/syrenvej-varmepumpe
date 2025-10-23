@@ -215,8 +215,12 @@ export default async function handler(req, res) {
                 }
             }
             
-            // Check if schedule was cancelled
-            if (previousSchedule && previousSchedule.active && (!newSchedule || !newSchedule.active) && previousState === newState) {
+            // Check if schedule was cancelled (not executed, just cleared/inactive)
+            // Don't log cancellation if schedule was executed or if relay state changed
+            if (previousSchedule && previousSchedule.active && 
+                (!newSchedule || !newSchedule.active) && 
+                previousState === newState &&
+                !(newSchedule && newSchedule.executed === true)) {
                 console.log('Schedule was cancelled');
                 
                 // Log schedule cancellation to stats
