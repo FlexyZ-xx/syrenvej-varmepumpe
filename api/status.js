@@ -55,7 +55,22 @@ export default async function handler(req, res) {
         try {
             const state = req.body;
             
-            const previousState = memoryState.relayState; // Track previous state
+            // Load previous state from KV (handles cold starts)
+            let previousStateData = memoryState;
+            if (hasKV) {
+                try {
+                    const kvState = await kvWithTimeout(() => kv.get('arduino:state'));
+                    if (kvState) {
+                        previousStateData = kvState;
+                        memoryState = kvState; // Update memory cache
+                        lastKnownSchedule = kvState.schedule; // Restore last schedule
+                    }
+                } catch (kvError) {
+                    console.log('Could not load previous state from KV:', kvError.message);
+                }
+            }
+            
+            const previousState = previousStateData.relayState; // Track previous state
             const previousSchedule = lastKnownSchedule; // Track previous schedule
             const newState = state.relayState || 'off';
             const newSchedule = state.schedule || null;
