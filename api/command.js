@@ -70,7 +70,7 @@ export default async function handler(req, res) {
                 console.log('Command stored in memory (KV not configured):', cmd);
             }
 
-            // Log command to stats (await to ensure it completes before function terminates)
+            // Log command to stats as "sent" (await to ensure it completes before function terminates)
             try {
                 const statsUrl = `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}/api/stats.js`;
                 const statsResponse = await fetch(statsUrl, {
@@ -81,8 +81,12 @@ export default async function handler(req, res) {
                     },
                     body: JSON.stringify({
                         eventType: 'command',
-                        commandType: command.type,
-                        commandData: command
+                        commandType: 'sent',
+                        commandData: {
+                            type: command.type,
+                            action: command.action,
+                            status: 'waiting'
+                        }
                     })
                 });
                 

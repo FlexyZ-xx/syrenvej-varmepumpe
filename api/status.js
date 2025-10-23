@@ -10,6 +10,9 @@ let memoryState = {
 
 let memoryErrorLog = { errors: [] };
 
+// Track last command sent to detect execution
+let lastCommandSent = null;
+
 // Check if KV is configured
 const hasKV = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
 
@@ -51,8 +54,11 @@ export default async function handler(req, res) {
         try {
             const state = req.body;
             
+            const previousState = memoryState.relayState; // Track previous state
+            const newState = state.relayState || 'off';
+            
             const arduinoState = {
-                relayState: state.relayState || 'off',
+                relayState: newState,
                 schedule: state.schedule || null,
                 lastUpdate: Date.now()
             };
@@ -69,6 +75,33 @@ export default async function handler(req, res) {
             } else {
                 memoryState = arduinoState;
                 console.log('State stored in memory (KV not configured):', arduinoState);
+            }
+            
+            // Check if relay state changed - log execution to stats
+            if (previousState !== newState) {
+                console.log(`Relay state changed: ${previousState} → ${newState}`);
+                
+                // Log to stats (fire and forget, don't block Arduino heartbeat)
+                try {
+                    const statsUrl = `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}/api/stats.js`;
+                    fetch(statsUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-API-Key': API_KEY
+                        },
+                        body: JSON.stringify({
+                            eventType: 'command',
+                            commandType: 'executed',
+                            commandData: {
+                                action: newState,
+                                previousState: previousState
+                            }
+                        })
+                    }).catch(err => console.error('Failed to log execution to stats:', err));
+                } catch (statsError) {
+                    console.error('Error logging execution to stats:', statsError);
+                }
             }
 
             // Also store error log if included in heartbeat
