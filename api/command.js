@@ -83,14 +83,19 @@ export default async function handler(req, res) {
                 };
                 
                 // Special handling for schedule commands
-                if (command.type === 'schedule' && command.dateTime) {
+                if (command.type === 'schedule') {
                     commandType = 'schedule_sent';
+                    // Build dateTime from individual fields or use provided dateTime
+                    let scheduledDateTime = command.dateTime;
+                    if (!scheduledDateTime && command.year && command.month && command.day && command.hour !== undefined && command.minute !== undefined) {
+                        scheduledDateTime = `${command.year}-${String(command.month).padStart(2, '0')}-${String(command.day).padStart(2, '0')}T${String(command.hour).padStart(2, '0')}:${String(command.minute).padStart(2, '0')}:00`;
+                    }
                     commandData = {
                         action: command.action,
-                        scheduledDateTime: command.dateTime,
+                        scheduledDateTime: scheduledDateTime,
                         status: 'waiting'
                     };
-                } else if (command.type === 'cancel_schedule') {
+                } else if (command.type === 'cancel_schedule' || command.type === 'clear_schedule') {
                     commandType = 'schedule_cancel_sent';
                     commandData = {
                         status: 'waiting'
