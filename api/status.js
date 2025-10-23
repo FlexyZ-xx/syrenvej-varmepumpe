@@ -12,6 +12,7 @@ let memoryErrorLog = { errors: [] };
 
 // Track last state and schedule to detect changes
 let lastKnownSchedule = null;
+let lastLoggedExecutionTimestamp = 0; // Track when we last logged a schedule execution
 
 // Check if KV is configured
 const hasKV = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
@@ -87,21 +88,24 @@ export default async function handler(req, res) {
                 console.log(`Relay state changed: ${previousState} → ${newState}`);
                 
                 // Determine if this was a schedule execution or manual command
-                // Multiple detection methods to handle cold starts:
-                // 1. Schedule was active before and now it's gone/inactive AND schedule action matches new state
-                const scheduleClearedAfterUse = previousSchedule && previousSchedule.active && 
-                                              (!newSchedule || !newSchedule.active) &&
-                                              previousSchedule.action === newState; // MUST match the action!
+                // ONLY trust the Arduino's explicit "executed" flag - this is the most reliable indicator
+                let wasScheduleExecution = newSchedule && 
+                                           newSchedule.executed === true && 
+                                           newSchedule.action === newState;
                 
-                // 2. Current report shows schedule just executed AND action matches
-                const scheduleJustExecuted = newSchedule && newSchedule.executed === true &&
-                                           newSchedule.action === newState; // MUST match the action!
-                
-                // 3. New schedule exists but is now inactive and matches the action that just happened
-                const scheduleInactiveMatchingAction = newSchedule && !newSchedule.active && 
-                                                       newSchedule.action === newState;
-                
-                const wasScheduleExecution = scheduleClearedAfterUse || scheduleJustExecuted || scheduleInactiveMatchingAction;
+                // Build schedule datetime for deduplication
+                let scheduleTimestamp = null;
+                if (wasScheduleExecution && newSchedule) {
+                    const scheduledDateTime = newSchedule.dateTime || 
+                                           `${newSchedule.year}-${String(newSchedule.month).padStart(2, '0')}-${String(newSchedule.day).padStart(2, '0')}T${String(newSchedule.hour).padStart(2, '0')}:${String(newSchedule.minute).padStart(2, '0')}:00`;
+                    scheduleTimestamp = new Date(scheduledDateTime).getTime();
+                    
+                    // Check if we've already logged this schedule execution
+                    if (scheduleTimestamp === lastLoggedExecutionTimestamp) {
+                        console.log('Schedule execution already logged, skipping duplicate');
+                        wasScheduleExecution = false; // Treat as manual to avoid duplicate
+                    }
+                }
                 
                 let commandType = wasScheduleExecution ? 'schedule_executed' : 'manual_executed';
                 let commandData = {
@@ -110,12 +114,12 @@ export default async function handler(req, res) {
                 };
                 
                 if (wasScheduleExecution) {
-                    // Build scheduledDateTime from whichever schedule object is available
-                    const scheduleRef = previousSchedule || newSchedule;
-                    if (scheduleRef) {
-                        commandData.scheduledDateTime = scheduleRef.dateTime || 
-                                                       `${scheduleRef.year}-${String(scheduleRef.month).padStart(2, '0')}-${String(scheduleRef.day).padStart(2, '0')}T${String(scheduleRef.hour).padStart(2, '0')}:${String(scheduleRef.minute).padStart(2, '0')}:00`;
-                        commandData.scheduleAction = scheduleRef.action;
+                    // Build scheduledDateTime from the executed schedule
+                    if (newSchedule) {
+                        commandData.scheduledDateTime = newSchedule.dateTime || 
+                                                       `${newSchedule.year}-${String(newSchedule.month).padStart(2, '0')}-${String(newSchedule.day).padStart(2, '0')}T${String(newSchedule.hour).padStart(2, '0')}:${String(newSchedule.minute).padStart(2, '0')}:00`;
+                        commandData.scheduleAction = newSchedule.action;
+                        lastLoggedExecutionTimestamp = scheduleTimestamp; // Mark as logged
                     }
                 }
                 
