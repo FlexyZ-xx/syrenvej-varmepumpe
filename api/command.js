@@ -10,6 +10,16 @@ const hasKV = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
 // API Key Authentication
 const API_KEY = (process.env.API_KEY || 'change-me-in-production').trim();
 
+// Helper function to wrap KV operations with timeout
+async function kvWithTimeout(operation, timeoutMs = 3000) {
+    return Promise.race([
+        operation(),
+        new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('KV timeout')), timeoutMs)
+        )
+    ]);
+}
+
 function authenticate(req) {
     const apiKey = req.headers['x-api-key'];
     return apiKey === API_KEY;
@@ -49,10 +59,10 @@ export default async function handler(req, res) {
             // Try KV first, fallback to memory
             if (hasKV) {
                 try {
-                    await kv.set('arduino:command', cmd);
+                    await kvWithTimeout(() => kv.set('arduino:command', cmd), 2000);
                     console.log('Command stored in KV:', cmd);
                 } catch (kvError) {
-                    console.error('KV error, using memory fallback:', kvError);
+                    console.error('KV error, using memory fallback:', kvError.message);
                     pendingCommand = cmd;
                 }
             } else {
@@ -102,17 +112,17 @@ export default async function handler(req, res) {
             // Try KV first, fallback to memory
             if (hasKV) {
                 try {
-                    cmd = await kv.get('arduino:command');
+                    cmd = await kvWithTimeout(() => kv.get('arduino:command'), 2000);
                     if (cmd) {
                         // Clear after sending
-                        await kv.del('arduino:command');
+                        await kvWithTimeout(() => kv.del('arduino:command'), 2000);
                     } else {
                         // Fallback to memory if KV is empty
                         cmd = pendingCommand;
                         pendingCommand = null;
                     }
                 } catch (kvError) {
-                    console.error('KV error, using memory fallback:', kvError);
+                    console.error('KV error, using memory fallback:', kvError.message);
                     cmd = pendingCommand;
                     pendingCommand = null;
                 }

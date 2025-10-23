@@ -20,6 +20,16 @@ const hasKV = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
 // API Key Authentication
 const API_KEY = (process.env.API_KEY || 'change-me-in-production').trim();
 
+// Helper function to wrap KV operations with timeout
+async function kvWithTimeout(operation, timeoutMs = 3000) {
+    return Promise.race([
+        operation(),
+        new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('KV timeout')), timeoutMs)
+        )
+    ]);
+}
+
 function authenticate(req) {
     const apiKey = req.headers['x-api-key'];
     return apiKey === API_KEY;
@@ -49,13 +59,13 @@ export default async function handler(req, res) {
             // Try KV first, fallback to memory
             if (hasKV) {
                 try {
-                    stats = await kv.get('arduino:stats');
+                    stats = await kvWithTimeout(() => kv.get('arduino:stats'), 2000);
                     if (!stats) {
                         // Initialize with empty structure if not found
                         stats = { logins: [], commands: [] };
                     }
                 } catch (kvError) {
-                    console.error('KV error, using memory fallback:', kvError);
+                    console.error('KV error, using memory fallback:', kvError.message);
                     stats = memoryStats;
                 }
             } else {
@@ -136,13 +146,13 @@ export default async function handler(req, res) {
             let stats;
             if (hasKV) {
                 try {
-                    stats = await kv.get('arduino:stats');
+                    stats = await kvWithTimeout(() => kv.get('arduino:stats'), 2000);
                     if (!stats) {
                         // Initialize with empty structure
                         stats = { logins: [], commands: [] };
                     }
                 } catch (kvError) {
-                    console.error('KV error loading stats:', kvError);
+                    console.error('KV error loading stats:', kvError.message);
                     stats = memoryStats;
                 }
             } else {
@@ -182,10 +192,10 @@ export default async function handler(req, res) {
             // Save updated stats
             if (hasKV) {
                 try {
-                    await kv.set('arduino:stats', stats);
+                    await kvWithTimeout(() => kv.set('arduino:stats', stats), 2000);
                     console.log(`${eventType} event logged to KV`);
                 } catch (kvError) {
-                    console.error('KV error saving stats:', kvError);
+                    console.error('KV error saving stats:', kvError.message);
                     memoryStats = stats;
                 }
             } else {
@@ -218,10 +228,10 @@ export default async function handler(req, res) {
 
             if (hasKV) {
                 try {
-                    await kv.set('arduino:stats', emptyStats);
+                    await kvWithTimeout(() => kv.set('arduino:stats', emptyStats), 2000);
                     console.log('Statistics cleared from KV');
                 } catch (kvError) {
-                    console.error('KV error clearing stats:', kvError);
+                    console.error('KV error clearing stats:', kvError.message);
                     memoryStats = emptyStats;
                 }
             } else {
