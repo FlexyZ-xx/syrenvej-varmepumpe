@@ -21,7 +21,7 @@ const hasKV = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
 const API_KEY = (process.env.API_KEY || 'change-me-in-production').trim();
 
 // Helper function to wrap KV operations with timeout
-async function kvWithTimeout(operation, timeoutMs = 3000) {
+async function kvWithTimeout(operation, timeoutMs = 500) {
     return Promise.race([
         operation(),
         new Promise((_, reject) => 
@@ -59,7 +59,7 @@ export default async function handler(req, res) {
             // Try KV first, fallback to memory
             if (hasKV) {
                 try {
-                    stats = await kvWithTimeout(() => kv.get('arduino:stats'), 2000);
+                    stats = await kvWithTimeout(() => kv.get('arduino:stats'));
                     if (!stats) {
                         // Initialize with empty structure if not found
                         stats = { logins: [], commands: [] };
@@ -146,7 +146,7 @@ export default async function handler(req, res) {
             let stats;
             if (hasKV) {
                 try {
-                    stats = await kvWithTimeout(() => kv.get('arduino:stats'), 2000);
+                    stats = await kvWithTimeout(() => kv.get('arduino:stats'));
                     if (!stats) {
                         // Initialize with empty structure
                         stats = { logins: [], commands: [] };
@@ -192,7 +192,7 @@ export default async function handler(req, res) {
             // Save updated stats
             if (hasKV) {
                 try {
-                    await kvWithTimeout(() => kv.set('arduino:stats', stats), 2000);
+                    await kvWithTimeout(() => kv.set('arduino:stats', stats));
                     console.log(`${eventType} event logged to KV`);
                 } catch (kvError) {
                     console.error('KV error saving stats:', kvError.message);
@@ -228,7 +228,7 @@ export default async function handler(req, res) {
 
             if (hasKV) {
                 try {
-                    await kvWithTimeout(() => kv.set('arduino:stats', emptyStats), 2000);
+                    await kvWithTimeout(() => kv.set('arduino:stats', emptyStats));
                     console.log('Statistics cleared from KV');
                 } catch (kvError) {
                     console.error('KV error clearing stats:', kvError.message);

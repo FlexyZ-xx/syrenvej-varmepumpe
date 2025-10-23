@@ -17,7 +17,7 @@ const hasKV = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
 const API_KEY = (process.env.API_KEY || 'change-me-in-production').trim();
 
 // Helper function to wrap KV operations with timeout
-async function kvWithTimeout(operation, timeoutMs = 3000) {
+async function kvWithTimeout(operation, timeoutMs = 500) {
     return Promise.race([
         operation(),
         new Promise((_, reject) => 
@@ -60,7 +60,7 @@ export default async function handler(req, res) {
             // Try KV first, fallback to memory
             if (hasKV) {
                 try {
-                    await kvWithTimeout(() => kv.set('arduino:state', arduinoState), 2000);
+                    await kvWithTimeout(() => kv.set('arduino:state', arduinoState));
                     console.log('State stored in KV:', arduinoState);
                 } catch (kvError) {
                     console.error('KV error, using memory fallback:', kvError.message);
@@ -83,7 +83,7 @@ export default async function handler(req, res) {
 
                 if (hasKV) {
                     try {
-                        await kvWithTimeout(() => kv.set('arduino:error_log', errorLog), 2000);
+                        await kvWithTimeout(() => kv.set('arduino:error_log', errorLog));
                         console.log('Error log stored in KV:', errorLog.errors.length, 'errors');
                     } catch (kvError) {
                         console.error('KV error storing error log, using memory fallback:', kvError.message);
@@ -110,7 +110,7 @@ export default async function handler(req, res) {
             // Try KV first, fallback to memory
             if (hasKV) {
                 try {
-                    arduinoState = await kvWithTimeout(() => kv.get('arduino:state'), 2000);
+                    arduinoState = await kvWithTimeout(() => kv.get('arduino:state'));
                     if (!arduinoState) {
                         arduinoState = memoryState; // Fallback to memory if KV is empty
                     }
@@ -130,7 +130,7 @@ export default async function handler(req, res) {
             let errorLog = memoryErrorLog;
             if (hasKV) {
                 try {
-                    const storedLog = await kvWithTimeout(() => kv.get('arduino:error_log'), 2000);
+                    const storedLog = await kvWithTimeout(() => kv.get('arduino:error_log'));
                     if (storedLog) {
                         errorLog = storedLog;
                     }

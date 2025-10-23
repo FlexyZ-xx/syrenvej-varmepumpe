@@ -11,7 +11,7 @@ const hasKV = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
 const API_KEY = (process.env.API_KEY || 'change-me-in-production').trim();
 
 // Helper function to wrap KV operations with timeout
-async function kvWithTimeout(operation, timeoutMs = 3000) {
+async function kvWithTimeout(operation, timeoutMs = 500) {
     return Promise.race([
         operation(),
         new Promise((_, reject) => 
@@ -59,7 +59,7 @@ export default async function handler(req, res) {
             // Try KV first, fallback to memory
             if (hasKV) {
                 try {
-                    await kvWithTimeout(() => kv.set('arduino:command', cmd), 2000);
+                    await kvWithTimeout(() => kv.set('arduino:command', cmd));
                     console.log('Command stored in KV:', cmd);
                 } catch (kvError) {
                     console.error('KV error, using memory fallback:', kvError.message);
@@ -112,10 +112,10 @@ export default async function handler(req, res) {
             // Try KV first, fallback to memory
             if (hasKV) {
                 try {
-                    cmd = await kvWithTimeout(() => kv.get('arduino:command'), 2000);
+                    cmd = await kvWithTimeout(() => kv.get('arduino:command'));
                     if (cmd) {
                         // Clear after sending
-                        await kvWithTimeout(() => kv.del('arduino:command'), 2000);
+                        await kvWithTimeout(() => kv.del('arduino:command'));
                     } else {
                         // Fallback to memory if KV is empty
                         cmd = pendingCommand;
