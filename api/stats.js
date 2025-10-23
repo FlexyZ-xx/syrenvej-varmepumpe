@@ -61,8 +61,14 @@ export default async function handler(req, res) {
                 try {
                     stats = await kvWithTimeout(() => kv.get('arduino:stats'));
                     if (!stats) {
-                        // Initialize with empty structure if not found
-                        stats = { logins: [], commands: [] };
+                        // KV returned null - check memory cache before returning empty
+                        if (memoryStats && (memoryStats.logins?.length > 0 || memoryStats.commands?.length > 0)) {
+                            console.warn('GET: KV returned null but memory has data - using memory');
+                            stats = memoryStats;
+                        } else {
+                            console.log('GET: No data in KV or memory, returning empty stats');
+                            stats = { logins: [], commands: [] };
+                        }
                     }
                 } catch (kvError) {
                     console.error('KV error, using memory fallback:', kvError.message);
@@ -159,8 +165,15 @@ export default async function handler(req, res) {
                 try {
                     stats = await kvWithTimeout(() => kv.get('arduino:stats'));
                     if (!stats) {
-                        // Initialize with empty structure (KV is empty, not failed)
-                        stats = { logins: [], commands: [] };
+                        // KV returned null - could be first time OR data loss
+                        // Use memory cache if available, otherwise initialize empty
+                        if (memoryStats && (memoryStats.logins?.length > 0 || memoryStats.commands?.length > 0)) {
+                            console.warn('KV returned null but memory has data - using memory to prevent data loss');
+                            stats = memoryStats;
+                        } else {
+                            console.log('Initializing new stats (KV empty and no memory cache)');
+                            stats = { logins: [], commands: [] };
+                        }
                     }
                 } catch (kvError) {
                     console.error('KV error loading stats:', kvError.message);
