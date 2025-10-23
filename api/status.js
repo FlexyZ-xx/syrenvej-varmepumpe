@@ -87,25 +87,34 @@ export default async function handler(req, res) {
                 console.log(`Relay state changed: ${previousState} → ${newState}`);
                 
                 // Determine if this was a schedule execution or manual command
-                // Schedule was active before and now it's gone/inactive = schedule executed
-                const wasScheduleExecution = previousSchedule && previousSchedule.active && 
-                                           (!newSchedule || !newSchedule.active);
+                // Multiple detection methods to handle cold starts:
+                // 1. Schedule was active before and now it's gone/inactive = schedule executed
+                const scheduleClearedAfterUse = previousSchedule && previousSchedule.active && 
+                                              (!newSchedule || !newSchedule.active);
                 
-                let commandType = 'executed';
+                // 2. Current report shows schedule just executed (Arduino reports schedule with executed flag or inactive after state change)
+                const scheduleJustExecuted = newSchedule && newSchedule.executed === true;
+                
+                // 3. New schedule exists but is now inactive and matches the action that just happened
+                const scheduleInactiveMatchingAction = newSchedule && !newSchedule.active && 
+                                                       newSchedule.action === newState;
+                
+                const wasScheduleExecution = scheduleClearedAfterUse || scheduleJustExecuted || scheduleInactiveMatchingAction;
+                
+                let commandType = wasScheduleExecution ? 'schedule_executed' : 'executed';
                 let commandData = {
                     action: newState,
                     previousState: previousState
                 };
                 
                 if (wasScheduleExecution) {
-                    commandType = 'schedule_executed';
-                    commandData = {
-                        action: newState,
-                        previousState: previousState,
-                        scheduledDateTime: previousSchedule.dateTime || 
-                                         `${previousSchedule.year}-${String(previousSchedule.month).padStart(2, '0')}-${String(previousSchedule.day).padStart(2, '0')}T${String(previousSchedule.hour).padStart(2, '0')}:${String(previousSchedule.minute).padStart(2, '0')}:00`,
-                        scheduleAction: previousSchedule.action
-                    };
+                    // Build scheduledDateTime from whichever schedule object is available
+                    const scheduleRef = previousSchedule || newSchedule;
+                    if (scheduleRef) {
+                        commandData.scheduledDateTime = scheduleRef.dateTime || 
+                                                       `${scheduleRef.year}-${String(scheduleRef.month).padStart(2, '0')}-${String(scheduleRef.day).padStart(2, '0')}T${String(scheduleRef.hour).padStart(2, '0')}:${String(scheduleRef.minute).padStart(2, '0')}:00`;
+                        commandData.scheduleAction = scheduleRef.action;
+                    }
                 }
                 
                 // Log to stats (fire and forget, don't block Arduino heartbeat)
