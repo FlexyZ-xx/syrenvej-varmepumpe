@@ -88,12 +88,14 @@ export default async function handler(req, res) {
                 
                 // Determine if this was a schedule execution or manual command
                 // Multiple detection methods to handle cold starts:
-                // 1. Schedule was active before and now it's gone/inactive = schedule executed
+                // 1. Schedule was active before and now it's gone/inactive AND schedule action matches new state
                 const scheduleClearedAfterUse = previousSchedule && previousSchedule.active && 
-                                              (!newSchedule || !newSchedule.active);
+                                              (!newSchedule || !newSchedule.active) &&
+                                              previousSchedule.action === newState; // MUST match the action!
                 
-                // 2. Current report shows schedule just executed (Arduino reports schedule with executed flag or inactive after state change)
-                const scheduleJustExecuted = newSchedule && newSchedule.executed === true;
+                // 2. Current report shows schedule just executed AND action matches
+                const scheduleJustExecuted = newSchedule && newSchedule.executed === true &&
+                                           newSchedule.action === newState; // MUST match the action!
                 
                 // 3. New schedule exists but is now inactive and matches the action that just happened
                 const scheduleInactiveMatchingAction = newSchedule && !newSchedule.active && 
