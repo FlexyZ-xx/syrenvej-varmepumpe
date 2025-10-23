@@ -43,7 +43,7 @@
     {
       "timestamp": 1729615800123,
       "time": "22/10/2025, 14:36:40 CEST",
-      "commandType": "executed",
+      "commandType": "manual_executed",
       "commandData": {
         "action": "on",
         "previousState": "off"
@@ -106,7 +106,7 @@
 ### Command Types
 The endpoint tracks different command types:
 - `sent`: Manual command sent from web UI (status: waiting)
-- `executed`: Manual command executed by Arduino
+- `manual_executed`: Manual command executed by Arduino (from UI toggle)
 - `schedule_sent`: Schedule command sent from web UI (includes **scheduledDateTime** and status: waiting)
 - `schedule_set`: Schedule was confirmed by Arduino (includes scheduled datetime)
 - `schedule_executed`: Schedule was executed by Arduino (includes scheduled datetime)

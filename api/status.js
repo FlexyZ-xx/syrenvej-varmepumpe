@@ -101,7 +101,7 @@ export default async function handler(req, res) {
                 
                 const wasScheduleExecution = scheduleClearedAfterUse || scheduleJustExecuted || scheduleInactiveMatchingAction;
                 
-                let commandType = wasScheduleExecution ? 'schedule_executed' : 'executed';
+                let commandType = wasScheduleExecution ? 'schedule_executed' : 'manual_executed';
                 let commandData = {
                     action: newState,
                     previousState: previousState
