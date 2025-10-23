@@ -76,7 +76,12 @@ export default async function handler(req, res) {
                 const errorLog = {
                     errors: state.errors.map(err => ({
                         timestamp: err.timestamp,
-                        time: new Date(err.timestamp * 1000).toISOString(),
+                        time: new Date(err.timestamp * 1000).toLocaleString('en-GB', { 
+                            timeZone: 'Europe/Copenhagen', 
+                            year: 'numeric', month: '2-digit', day: '2-digit',
+                            hour: '2-digit', minute: '2-digit', second: '2-digit',
+                            hour12: false
+                        }) + ' CEST',
                         message: err.message
                     }))
                 };

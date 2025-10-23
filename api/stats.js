@@ -89,13 +89,23 @@ export default async function handler(req, res) {
             // Get most recent events (last 50 of each)
             const recentLogins = stats.logins.slice(-50).reverse().map(l => ({
                 timestamp: l.timestamp,
-                time: new Date(l.timestamp).toISOString(),
+                time: new Date(l.timestamp).toLocaleString('en-GB', { 
+                    timeZone: 'Europe/Copenhagen', 
+                    year: 'numeric', month: '2-digit', day: '2-digit',
+                    hour: '2-digit', minute: '2-digit', second: '2-digit',
+                    hour12: false
+                }) + ' CEST',
                 userAgent: l.userAgent
             }));
 
             const recentCommands = stats.commands.slice(-50).reverse().map(c => ({
                 timestamp: c.timestamp,
-                time: new Date(c.timestamp).toISOString(),
+                time: new Date(c.timestamp).toLocaleString('en-GB', { 
+                    timeZone: 'Europe/Copenhagen', 
+                    year: 'numeric', month: '2-digit', day: '2-digit',
+                    hour: '2-digit', minute: '2-digit', second: '2-digit',
+                    hour12: false
+                }) + ' CEST',
                 commandType: c.commandType,
                 commandData: c.commandData
             }));
