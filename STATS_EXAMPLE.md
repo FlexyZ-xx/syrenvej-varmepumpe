@@ -33,20 +33,40 @@
     {
       "timestamp": 1729615789012,
       "time": "22/10/2025, 14:36:29 CEST",
-      "commandType": "manual",
+      "commandType": "sent",
       "commandData": {
         "type": "manual",
-        "action": "on"
+        "action": "on",
+        "status": "waiting"
+      }
+    },
+    {
+      "timestamp": 1729615800123,
+      "time": "22/10/2025, 14:36:40 CEST",
+      "commandType": "executed",
+      "commandData": {
+        "action": "on",
+        "previousState": "off"
       }
     },
     {
       "timestamp": 1729612345678,
       "time": "22/10/2025, 13:39:05 CEST",
-      "commandType": "schedule",
+      "commandType": "schedule_set",
       "commandData": {
-        "type": "schedule",
         "action": "on",
-        "dateTime": "2025-10-23T08:00:00"
+        "scheduledDateTime": "2025-10-23T08:00:00"
+      }
+    },
+    {
+      "timestamp": 1729652400000,
+      "time": "23/10/2025, 08:00:00 CEST",
+      "commandType": "schedule_executed",
+      "commandData": {
+        "action": "on",
+        "previousState": "off",
+        "scheduledDateTime": "2025-10-23T08:00:00",
+        "scheduleAction": "on"
       }
     }
   ],
@@ -75,10 +95,11 @@
 
 ### Command Types
 The endpoint tracks different command types:
-- `manual`: Direct relay ON/OFF commands
-- `schedule`: Scheduled relay actions
-- `cancel_schedule`: Schedule cancellations
-- `clear_errors`: Error log clearing (from debug endpoint)
+- `sent`: Command sent from web UI (status: waiting)
+- `executed`: Manual command executed by Arduino
+- `schedule_set`: Schedule was created/set (includes scheduled datetime)
+- `schedule_executed`: Schedule was executed by Arduino (includes scheduled datetime)
+- `schedule_cancelled`: Schedule was cancelled before execution (includes scheduled datetime)
 
 ## Example Queries
 
