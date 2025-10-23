@@ -346,6 +346,24 @@ function schedulesMatch(actual, expected) {
 function updateScheduleDisplay(schedule) {
     const container = document.getElementById('currentSchedule');
     
+    // If schedule was just executed, show brief success message before clearing
+    if (schedule && schedule.executed && currentSchedule && currentSchedule.active) {
+        container.innerHTML = `
+            <div style="font-size: 20px; margin-bottom: 8px;">✅ EXECUTED</div>
+            <div style="color: #065f46; font-weight: 600;">Schedule completed successfully!</div>
+        `;
+        container.classList.add('has-schedule');
+        container.classList.add('executed');
+        
+        // Clear after 3 seconds
+        setTimeout(() => {
+            container.innerHTML = '<div style="color: #718096;">No schedule set</div>';
+            container.classList.remove('has-schedule', 'executed');
+            currentSchedule = null;
+        }, 3000);
+        return;
+    }
+    
     // Clear display if schedule is null, empty, inactive, or already executed
     if (!schedule || !schedule.year || schedule.year === 0 || !schedule.active || schedule.executed) {
         container.innerHTML = '<div style="color: #718096;">No schedule set</div>';
@@ -369,8 +387,12 @@ function updateScheduleDisplay(schedule) {
     const actionStr = schedule.action === 'on' ? 'ON' : 'OFF';
     
     container.innerHTML = `
+        <div style="font-size: 20px; margin-bottom: 8px;">⏰ SCHEDULED ACTION</div>
         <div class="schedule-time">${dateStr}</div>
-        <div class="schedule-time">${timeStr} - ${actionStr}</div>
+        <div class="schedule-time">${timeStr} - Turn ${actionStr}</div>
+        <div style="font-size: 12px; color: #92400e; margin-top: 8px; font-weight: normal;">
+            Waiting for execution...
+        </div>
     `;
     
     container.classList.add('has-schedule');

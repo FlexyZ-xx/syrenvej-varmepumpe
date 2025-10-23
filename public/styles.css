@@ -109,11 +109,23 @@ input:checked + .slider:before {
     padding: 15px;
     margin-bottom: 20px;
     text-align: center;
+    transition: all 0.3s ease;
 }
 
 .current-schedule.has-schedule {
-    background: #c6f6d5;
-    border-color: #48bb78;
+    background: #fef3c7;
+    border: 2px solid #f59e0b;
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+    }
+    50% {
+        box-shadow: 0 4px 20px rgba(245, 158, 11, 0.5);
+    }
 }
 
 .current-schedule .schedule-time {
@@ -129,8 +141,11 @@ input:checked + .slider:before {
     font-weight: 500;
 }
 
-.current-schedule.executed .schedule-action {
-    color: #718096;
+.current-schedule.executed {
+    background: #d1fae5;
+    border-color: #10b981;
+    animation: none;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
 
 .form-group {
