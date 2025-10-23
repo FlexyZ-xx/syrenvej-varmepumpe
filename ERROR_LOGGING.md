@@ -196,12 +196,17 @@ For additional monitoring and analytics, see:
 - Errors are logged before reboots, so you can see what triggered them
 - No manual trigger needed - just retrieve from `/api/debug.js` or `/api/status.js` anytime
 
-### How Shared Memory Works
+### How Storage Works
 
+**With Upstash Redis (Recommended):**
+- Error logs stored permanently in Upstash Redis (KV storage)
+- Persists across all serverless instances and cold starts
+- Setup instructions: [VERCEL_KV_SETUP.md](VERCEL_KV_SETUP.md)
+
+**Without Upstash (In-Memory Fallback):**
 - Error logs stored in-memory within `/api/status.js` serverless function
 - Same function handles both POST (Arduino) and GET (user) → memory is shared
 - Vercel keeps function instances warm, so memory persists between calls
 - If instance cold-starts, Arduino will repopulate errors on next heartbeat (max 60s)
-- For persistent storage across all instances, optionally set up Vercel KV (see VERCEL_KV_SETUP.md)
 
 

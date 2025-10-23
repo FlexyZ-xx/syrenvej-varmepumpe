@@ -54,6 +54,8 @@
 }
 ```
 
+**Note:** `"storage": "vercel-kv"` indicates Upstash Redis is configured. If you see `"storage": "in-memory"`, stats won't persist across cold starts - see [VERCEL_KV_SETUP.md](../VERCEL_KV_SETUP.md).
+
 ## Features
 
 ### Automatic Logging
@@ -103,6 +105,13 @@ curl https://syrenvej-varmepumpe.vercel.app/api/stats.js \
 curl https://syrenvej-varmepumpe.vercel.app/api/stats.js \
   -H "X-API-Key: YOUR_API_KEY" | jq '.recentCommands'
 ```
+
+## Storage and Persistence
+
+- **With Upstash Redis**: Stats persist permanently (recommended for production)
+- **Without Upstash**: Stats stored in-memory (lost on cold starts)
+- Check `"storage"` field in response to see which mode is active
+- Setup Upstash: See [VERCEL_KV_SETUP.md](../VERCEL_KV_SETUP.md)
 
 ## Privacy Considerations
 

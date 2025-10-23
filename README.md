@@ -7,7 +7,7 @@ Simple web interface to control a relay connected to an ESP32/Arduino via the cl
 - **[README.md](README.md)** (this file) - Main documentation and setup guide
 - **[STATS_EXAMPLE.md](STATS_EXAMPLE.md)** - Statistics tracking and usage analytics
 - **[ERROR_LOGGING.md](ERROR_LOGGING.md)** - Arduino error logging and debugging
-- **[VERCEL_KV_SETUP.md](VERCEL_KV_SETUP.md)** - Optional persistent storage setup
+- **[VERCEL_KV_SETUP.md](VERCEL_KV_SETUP.md)** - Optional Upstash Redis (KV) persistent storage setup
 
 ## Quick Overview
 
@@ -140,6 +140,8 @@ The Arduino provides visual feedback through its LED to show operational status:
 
 ## API Configuration
 
+### API Key
+
 The API key is stored in:
 - **Vercel**: Environment variable `API_KEY`
 - **Arduino**: Variable `API_KEY` in the `.ino` file
@@ -150,6 +152,14 @@ To update the API key:
 vercel env add API_KEY
 # Generate new key: openssl rand -hex 32
 ```
+
+### Persistent Storage (Optional)
+
+For production use, set up **Upstash Redis** for persistent storage:
+- Without it: Data stored in-memory (lost on cold starts)
+- With it: All data persists permanently
+- See [VERCEL_KV_SETUP.md](VERCEL_KV_SETUP.md) for setup instructions
+- Free tier: 10,000 requests/day, 256 MB storage
 
 ## Project Structure
 

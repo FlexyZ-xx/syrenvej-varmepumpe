@@ -19,29 +19,57 @@ Without KV, the UI may occasionally show "Waiting for first connection..." due t
 npm install
 ```
 
-### 2. Create Vercel KV Database
+### 2. Create Upstash Redis Database (KV Storage)
+
+Vercel now uses **Upstash Redis** for KV (Key-Value) storage:
 
 1. Go to your Vercel dashboard: https://vercel.com/dashboard
 2. Select your project (`syrenvej-varmepumpe`)
 3. Go to the **Storage** tab
 4. Click **Create Database**
-5. Select **KV** (Key-Value Store)
-6. Give it a name (e.g., `syrenvej-kv`)
-7. Click **Create**
-8. **Connect to Project** - select your project from the dropdown
-9. Vercel will automatically set the required environment variables
+5. Click on **"Upstash"** to expand options
+6. Select **"Upstash for Redis"** and click **"Create"**
+7. Authorize Upstash integration if prompted
+8. Create database:
+   - Name: `syrenvej-redis` (or any name you like)
+   - Region: Choose closest to you (or default)
+   - Click **"Create"**
+9. **Connect to Project** - select your project from the dropdown
+10. Click **"Connect"**
 
-### 3. Redeploy (Automatic)
+### 3. Verify Environment Variables
 
-The code has already been pushed to GitHub, so Vercel will automatically redeploy with KV support.
+After connecting, verify these environment variables are set in your Vercel project (Settings → Environment Variables):
+
+- `KV_REST_API_URL`
+- `KV_REST_API_TOKEN`
+- `KV_REST_API_READ_ONLY_TOKEN`
+
+If they're missing, add them manually from the Upstash dashboard.
+
+### 4. Redeploy (Automatic)
+
+Vercel will automatically redeploy after connecting Upstash. If not, trigger manually:
+
+```bash
+git commit --allow-empty -m "Trigger redeploy for Upstash KV"
+git push origin main
+```
 
 ## Verification
 
-After KV is set up and the deployment completes:
+After Upstash Redis is set up and the deployment completes:
 
-1. Open the web UI
-2. You should see the connection status change from "Waiting for first connection..." to "Connected" (green) once the Arduino reports status
-3. The status will persist across page reloads and serverless cold starts
+1. Verify storage type:
+```bash
+curl https://syrenvej-varmepumpe.vercel.app/api/stats.js \
+  -H "X-API-Key: YOUR_API_KEY" | grep storage
+```
+Should show: `"storage": "vercel-kv"` (not "in-memory")
+
+2. Open the web UI
+3. You should see the connection status change from "Waiting for first connection..." to "Connected" (green) once the Arduino reports status
+4. The status will persist across page reloads and serverless cold starts
 
 ## How It Works
 
@@ -64,28 +92,43 @@ After KV is set up and the deployment completes:
 - **POST /api/stats.js** - Log events (automatic from UI) → stored in KV
 - **DELETE /api/stats.js** - Clear statistics → stored in KV
 
-## Vercel KV Free Tier
+## Upstash Redis Free Tier
 
-- **30 MB storage**
-- **100,000 commands/month**
-- More than enough for this project (state is <1 KB)
+- **10,000 requests/day** (300,000/month)
+- **256 MB storage**
+- **Max 100 KB per request**
+- More than enough for this project (state is <1 KB per request)
+- No credit card required
 
 ## Troubleshooting
 
-If the UI still shows "Waiting for first connection...":
+### Stats show "in-memory" instead of "vercel-kv"
 
-1. Check that KV database is created and connected to the project
+The environment variables are missing or incorrect:
+
+1. Go to Vercel Dashboard → Your Project → Settings → Environment Variables
+2. Verify these three variables exist:
+   - `KV_REST_API_URL`
+   - `KV_REST_API_TOKEN`
+   - `KV_REST_API_READ_ONLY_TOKEN`
+3. If missing, add them manually from your Upstash dashboard
+4. Trigger a redeploy after adding variables
+
+### UI shows "Waiting for first connection..."
+
+1. Check that Upstash Redis is created and connected to the project
 2. Check Vercel deployment logs for errors
 3. Verify the Arduino is successfully POSTing (check Arduino serial console)
 4. Wait 60 seconds for the Arduino's next heartbeat
 
-## Alternative: Manual Environment Variables
+### Getting Upstash Credentials Manually
 
-If automatic connection doesn't work, you can manually add these environment variables in Vercel project settings:
+If you need to find your Upstash credentials:
 
-- `KV_REST_API_URL`
-- `KV_REST_API_TOKEN`
-- `KV_REST_API_READ_ONLY_TOKEN`
-
-(These should be automatically provided by Vercel when you connect the KV database)
+1. Go to Upstash Console: https://console.upstash.com/
+2. Select your Redis database
+3. Click "Details" tab
+4. Copy the REST API credentials:
+   - `UPSTASH_REDIS_REST_URL` → Use as `KV_REST_API_URL`
+   - `UPSTASH_REDIS_REST_TOKEN` → Use as `KV_REST_API_TOKEN`
 
