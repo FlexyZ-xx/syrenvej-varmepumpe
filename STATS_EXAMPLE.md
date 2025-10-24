@@ -21,11 +21,13 @@
     {
       "timestamp": 1729615234567,
       "time": "22/10/2025, 14:27:14 CEST",
+      "ip": "192.168.1.100",
       "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X)"
     },
     {
       "timestamp": 1729598754321,
       "time": "22/10/2025, 09:52:34 CEST",
+      "ip": "10.0.0.25",
       "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
     }
   ],
@@ -149,7 +151,8 @@ curl https://syrenvej-varmepumpe.vercel.app/api/stats.js \
 ## Privacy Considerations
 
 - Statistics are kept for operational monitoring
-- User agents (browser/device info) are stored but not IP addresses
-- Use DELETE endpoint to clear data if needed
+- Login tracking includes: timestamp, IP address, and user agent (browser/device info)
+- Command tracking includes: timestamp and action details (no personal info)
+- Use DELETE endpoint to clear all data if needed
 - Only accessible with valid API key
 
