@@ -111,6 +111,7 @@ export default async function handler(req, res) {
                     hour: '2-digit', minute: '2-digit', second: '2-digit',
                     hour12: false
                 }) + ' CEST',
+                ip: l.ip || 'unknown',
                 userAgent: l.userAgent
             }));
 
@@ -167,6 +168,12 @@ export default async function handler(req, res) {
             }
 
             const userAgent = req.headers['user-agent'] || 'unknown';
+            
+            // Get client IP from headers (Vercel provides this)
+            const forwardedFor = req.headers['x-forwarded-for'];
+            const clientIp = forwardedFor 
+                ? forwardedFor.split(',')[0].trim()  // First IP is the client
+                : req.headers['x-real-ip'] || 'unknown';
 
             // Load current stats
             let stats;
@@ -204,7 +211,8 @@ export default async function handler(req, res) {
             if (eventType === 'login') {
                 stats.logins.push({
                     timestamp,
-                    userAgent
+                    userAgent,
+                    ip: clientIp
                 });
                 
                 // Keep only last 1000 login entries
