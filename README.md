@@ -133,6 +133,8 @@ The Arduino provides visual feedback through its LED to show operational status:
 ### Features:
 1. **Manual Control** - Toggle relay ON/OFF immediately
 2. **Schedule** - Set future ON/OFF action (date + time)
+   - ⏰ **Automatic DST**: Schedules automatically adjust for summer/winter time (CET/CEST)
+   - Timezone: Copenhagen, Denmark (UTC+1/UTC+2)
 3. **Connection Status** - Real-time heartbeat monitoring
 4. **Error Logging** - Automatic error tracking and remote viewing
 5. **Usage Statistics** - Track logins and commands with timestamps
@@ -320,10 +322,25 @@ curl -X POST https://syrenvej-varmepumpe.vercel.app/api/command.js \
 - **HTTPS Only**: Encrypted communication
 - **No Open Ports**: Arduino only polls outward
 
+## Upgrading Arduino Firmware
+
+After pulling new Arduino code changes (like DST fixes), you need to re-upload to your ESP32:
+
+1. Open `arduino/syrenvej_varmepumpe/syrenvej_varmepumpe.ino` in Arduino IDE
+2. Select your ESP32 board (Tools → Board → ESP32 Arduino → ESP32 Dev Module)
+3. Select correct COM port (Tools → Port)
+4. Click **Upload** (or Ctrl+U)
+5. Wait for "Hard resetting via RTS pin..." message
+6. Arduino will reboot and LED will turn purple → yellow → green
+
+**Check Serial Monitor** (115200 baud) after upload to verify:
+- Time shows correct CET/CEST
+- "DST will automatically adjust" message appears
+
 ## Support
 
 For issues or questions, check:
-- Serial monitor output from Arduino
+- Serial monitor output from Arduino (115200 baud)
 - Browser console for errors
 - Vercel deployment logs
 
