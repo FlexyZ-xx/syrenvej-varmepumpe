@@ -123,8 +123,11 @@ HTTPClient http;
 
 // NTP Configuration
 const char* NTP_SERVER = "pool.ntp.org";
-const long GMT_OFFSET_SEC = 3600;  // Adjust for your timezone (1 hour = 3600 seconds)
-const int DAYLIGHT_OFFSET_SEC = 3600;  // Adjust for daylight saving
+// Timezone for Copenhagen, Denmark (CET/CEST with automatic DST)
+// CET-1CEST: CET is UTC+1, CEST is UTC+2
+// M3.5.0: DST starts last Sunday of March at 02:00
+// M10.5.0/3: DST ends last Sunday of October at 03:00
+const char* TIMEZONE = "CET-1CEST,M3.5.0,M10.5.0/3";
 
 // ============================================
 // LED Control Functions
@@ -303,13 +306,21 @@ void setup() {
     Serial.println("Waiting for network stack to initialize...");
     delay(2000);
     
-    // Initialize time
-    configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER);
-    Serial.println("Waiting for time sync...");
+    // Initialize time with automatic DST handling
+    configTzTime(TIMEZONE, NTP_SERVER);
+    Serial.println("Waiting for time sync with timezone: CET/CEST...");
     while (time(nullptr) < 100000) {
         delay(100);
     }
-    Serial.println("Time synchronized!");
+    
+    // Print current time to verify DST is working
+    time_t now = time(nullptr);
+    struct tm* timeinfo = localtime(&now);
+    Serial.printf("Time synchronized! Current time: %04d-%02d-%02d %02d:%02d:%02d %s\n",
+                  timeinfo->tm_year + 1900, timeinfo->tm_mon + 1, timeinfo->tm_mday,
+                  timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec,
+                  timeinfo->tm_isdst ? "CEST (DST active)" : "CET");
+    Serial.println("DST will automatically adjust on last Sunday of March and October");
     
     setLEDGreen();  // Green after time synced - normal operation
     
