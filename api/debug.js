@@ -5,6 +5,24 @@
  * DELETE: Clears error logs on both server and Arduino EEPROM
  */
 
+import { kv } from '@vercel/kv';
+
+// Hybrid storage: KV if available, fallback message if not
+let memoryErrorLog = { errors: [] };
+
+// Check if KV is configured
+const hasKV = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+
+// Helper function to wrap KV operations with timeout
+async function kvWithTimeout(operation, timeoutMs = 500) {
+    return Promise.race([
+        operation(),
+        new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('KV timeout')), timeoutMs)
+        )
+    ]);
+}
+
 export default async function handler(req, res) {
     // CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -61,24 +79,30 @@ export default async function handler(req, res) {
         
     } else if (req.method === 'GET') {
         try {
-            // Call status.js internally to get the latest data (including errors)
-            const statusUrl = `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}/api/status.js`;
+            // Access error log directly from same storage as status.js
+            let errorLog = memoryErrorLog;
             
-            const response = await fetch(statusUrl, {
-                headers: {
-                    'X-API-Key': API_KEY
+            if (hasKV) {
+                try {
+                    const storedLog = await kvWithTimeout(() => kv.get('arduino:error_log'));
+                    if (storedLog) {
+                        errorLog = storedLog;
+                    } else {
+                        console.log('No error log found in KV storage');
+                    }
+                } catch (kvError) {
+                    console.error('KV error reading error log, using memory fallback:', kvError.message);
+                    // Fall back to memory (which will be empty without KV)
                 }
-            });
-            
-            if (!response.ok) {
-                throw new Error(`Status API returned ${response.status}`);
+            } else {
+                console.log('KV not configured - error log only available via /api/status.js?errors=true');
+                console.log('Set up Vercel KV for persistent cross-instance error storage');
             }
             
-            const data = await response.json();
-            
-            // Return just the errors array
+            // Return errors array
             return res.status(200).json({
-                errors: data.errors || []
+                errors: errorLog.errors || [],
+                note: !hasKV ? 'KV not configured. Error logs only persist within same serverless instance. Use /api/status.js?errors=true for most reliable access.' : undefined
             });
             
         } catch (error) {

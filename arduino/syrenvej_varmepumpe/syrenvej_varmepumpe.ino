@@ -45,8 +45,8 @@
 #endif
 
 // WiFi Configuration
-const char* WIFI_SSID = "dezign";
-const char* WIFI_PASSWORD = "torvelink";
+const char* WIFI_SSID = "Syrenvej_6";
+const char* WIFI_PASSWORD = "Andreas97";
 
 // API Configuration
 const char* API_HOST = "https://syrenvej-varmepumpe.vercel.app";
@@ -63,11 +63,10 @@ WS2812 pixels(1, LEDWS_BUILTIN);
 CH_Relay Relay;
 
 // Polling interval (milliseconds)
-const unsigned long POLL_INTERVAL = 60000;  // Poll every 1 minute (reduced traffic)
-const unsigned long STATUS_REPORT_INTERVAL = 60000;  // Report status every 1 minute (reduced traffic)
+const unsigned long POLL_INTERVAL = 60000;  // Poll every 1 minute (checks commands + sends status)
 
 // Watchdog timer configuration
-const int WDT_TIMEOUT = 120;  // Watchdog timeout in seconds (2 minutes)
+const int WDT_TIMEOUT = 60;  // Watchdog timeout in seconds (1 minute - will reboot if loop stuck)
 
 // EEPROM addresses
 const int EEPROM_SIZE = 2048;  // Increased for error log storage
@@ -108,9 +107,8 @@ Schedule currentSchedule;
 ErrorLogBuffer errorLogBuffer;  // Error log storage
 
 unsigned long lastPoll = 0;
-unsigned long lastStatusReport = 0;
-unsigned long lastImmediateReport = 0;  // Track immediate reports
 unsigned long lastCountdownPrint = 0;   // Track countdown display
+unsigned long lastWifiCheck = 0;        // Track WiFi reconnection attempts
 int consecutiveHttpErrors = 0;
 int consecutiveWifiFailures = 0;        // Track WiFi reconnection failures
 
@@ -119,8 +117,6 @@ bool ledState = false;  // Track LED on/off state
 unsigned long lastLedToggle = 0;
 const unsigned long LED_TOGGLE_INTERVAL = 1000;  // Toggle every 1 second
 
-HTTPClient http;
-
 // NTP Configuration
 const char* NTP_SERVER = "pool.ntp.org";
 // Timezone for Copenhagen, Denmark (CET/CEST with automatic DST)
@@ -128,6 +124,12 @@ const char* NTP_SERVER = "pool.ntp.org";
 // M3.5.0: DST starts last Sunday of March at 02:00
 // M10.5.0/3: DST ends last Sunday of October at 03:00
 const char* TIMEZONE = "CET-1CEST,M3.5.0,M10.5.0/3";
+
+// ============================================
+// Function Declarations
+// ============================================
+void reportStatus();
+void printCountdown();
 
 // ============================================
 // LED Control Functions
@@ -245,7 +247,7 @@ void setup() {
     Serial.println("\n\nSyrenvej6 Varmepumpe Controller");
     Serial.println("================================");
     
-    // Configure watchdog timer (2 minutes timeout)
+    // Configure watchdog timer (1 minute timeout)
     // If loop() doesn't run or gets stuck, Arduino will auto-reboot
     Serial.print("Configuring watchdog timer (");
     Serial.print(WDT_TIMEOUT);
@@ -268,9 +270,9 @@ void setup() {
     Serial.println("Restoring relay to saved state...");
     setRelay(relayState);
     
-    // Connect to WiFi - retry up to 3 times before rebooting
+    // Connect to WiFi - retry up to 5 times before rebooting
     int wifiRetries = 0;
-    const int MAX_WIFI_RETRIES = 3;
+    const int MAX_WIFI_RETRIES = 5;
     
     connectWiFi();
     while (WiFi.status() != WL_CONNECTED) {
@@ -280,8 +282,8 @@ void setup() {
         setLEDRed();
         
         if (wifiRetries >= MAX_WIFI_RETRIES) {
-            logError("Failed to connect to WiFi after 3 attempts - rebooting");
-            Serial.println("Failed to connect to WiFi after 3 attempts.");
+            logError("Failed to connect to WiFi after 5 attempts - rebooting");
+            Serial.println("Failed to connect to WiFi after 5 attempts.");
             Serial.println("Rebooting in 5 seconds...");
             delay(5000);
             ESP.restart(); // Reboot the ESP32
@@ -289,14 +291,21 @@ void setup() {
         
         Serial.print("Retrying WiFi connection (attempt ");
         Serial.print(wifiRetries + 1);
-        Serial.println("/3) in 5 seconds...");
+        Serial.println("/5) in 5 seconds...");
         
         // Log the retry
         char errorMsg[ERROR_MESSAGE_LENGTH];
-        snprintf(errorMsg, ERROR_MESSAGE_LENGTH, "WiFi connection failed (attempt %d/3)", wifiRetries);
+        snprintf(errorMsg, ERROR_MESSAGE_LENGTH, "WiFi connection failed (attempt %d/5)", wifiRetries);
         logError(errorMsg);
         
-        delay(5000);
+        // Properly shutdown WiFi before retry
+        Serial.println("Shutting down WiFi radio...");
+        WiFi.disconnect(true, true);  // Disconnect and erase credentials from memory
+        WiFi.mode(WIFI_OFF);          // Turn off WiFi radio completely
+        delay(2000);                  // Wait for radio to fully shutdown
+        
+        Serial.println("Waiting before retry...");
+        delay(3000);
         connectWiFi();
     }
 
@@ -324,44 +333,18 @@ void setup() {
     
     setLEDGreen();  // Green after time synced - normal operation
     
-    // Send immediate heartbeat after startup with restored relay state
-    // This ensures UI shows correct state immediately after reboot
-    Serial.println("Sending initial heartbeat with restored state...");
+    // Do initial poll to sync with server and get any pending commands
+    // This also sends our current status to the UI
+    Serial.println("Performing initial poll to sync with server...");
+    pollForCommands();
     
-    // Retry heartbeat up to 3 times if it fails
-    int heartbeatRetries = 0;
-    while (heartbeatRetries < 3) {
-        reportStatus();
-        delay(2000);  // Wait to see if it succeeded
-        
-        if (consecutiveHttpErrors == 0) {
-            Serial.println("Initial heartbeat sent successfully!");
-            break;  // Success!
-        } else {
-            heartbeatRetries++;
-            
-            // Turn LED red during heartbeat retry
-            setLEDRed();
-            
-            if (heartbeatRetries < 3) {
-                Serial.print("Retrying initial heartbeat (attempt ");
-                Serial.print(heartbeatRetries + 1);
-                Serial.println("/3)...");
-                
-                // Log the retry
-                char errorMsg[ERROR_MESSAGE_LENGTH];
-                snprintf(errorMsg, ERROR_MESSAGE_LENGTH, "Initial heartbeat failed (attempt %d/3)", heartbeatRetries);
-                logError(errorMsg);
-                
-                delay(3000);
-            } else {
-                logError("Initial heartbeat failed after 3 attempts");
-                Serial.println("Initial heartbeat failed after 3 attempts. Will retry in main loop.");
-            }
-        }
-    }
+    // Initialize timer after initial poll
+    unsigned long setupTime = millis();
+    lastPoll = setupTime;                    // Next poll in 60 seconds
+    lastCountdownPrint = setupTime;          // Start countdown display immediately
     
-    Serial.println("Setup complete. Starting main loop...\n");
+    Serial.println("\nSetup complete. Starting main loop...");
+    Serial.println("Timer initialized: Next poll in 60 seconds");
     
     // LED will toggle to show loop is running
 }
@@ -375,62 +358,70 @@ void loop() {
     // Toggle LED to show loop is running
     toggleLED();
     
-    // Check WiFi connection
-    if (WiFi.status() != WL_CONNECTED) {
-        consecutiveWifiFailures++;
+    // Check WiFi connection periodically (every 10 seconds) instead of every loop iteration
+    // This prevents blocking the loop with frequent reconnection attempts
+    if (now - lastWifiCheck >= 10000) {
+        lastWifiCheck = now;
         
-        // Turn LED red during WiFi error
-        setLEDRed();
-        
-        Serial.print("WiFi disconnected. Reconnecting (attempt ");
-        Serial.print(consecutiveWifiFailures);
-        Serial.println("/3)...");
-        
-        // Log the error
-        char errorMsg[ERROR_MESSAGE_LENGTH];
-        snprintf(errorMsg, ERROR_MESSAGE_LENGTH, "WiFi disconnected (attempt %d/3)", consecutiveWifiFailures);
-        logError(errorMsg);
-        
-        WiFi.disconnect();
-        delay(1000);
-        connectWiFi();
-        
-        // If still not connected after 3 attempts, reboot
-        if (WiFi.status() != WL_CONNECTED && consecutiveWifiFailures >= 3) {
-            logError("Failed to reconnect WiFi after 3 attempts - rebooting");
-            Serial.println("Failed to reconnect WiFi after 3 attempts.");
-            Serial.println("Rebooting in 5 seconds...");
-            delay(5000);
-            ESP.restart();
+        if (WiFi.status() != WL_CONNECTED) {
+            consecutiveWifiFailures++;
+            
+            // Turn LED red during WiFi error
+            setLEDRed();
+            
+            Serial.print("WiFi disconnected. Reconnecting (attempt ");
+            Serial.print(consecutiveWifiFailures);
+            Serial.println("/5)...");
+            
+            // Log the error (only on first attempt to avoid EEPROM spam)
+            if (consecutiveWifiFailures == 1) {
+                logError("WiFi disconnected - attempting reconnection");
+            }
+            
+            // Properly shutdown WiFi before retry
+            Serial.println("Shutting down WiFi radio...");
+            WiFi.disconnect(true, true);  // Disconnect and erase credentials from memory
+            WiFi.mode(WIFI_OFF);          // Turn off WiFi radio completely
+            delay(2000);                  // Wait for radio to fully shutdown
+            
+            Serial.println("Attempting reconnection...");
+            delay(1000);
+            connectWiFi();
+            
+            // If still not connected after 5 attempts, reboot
+            if (WiFi.status() != WL_CONNECTED && consecutiveWifiFailures >= 5) {
+                logError("Failed to reconnect WiFi after 5 attempts - rebooting");
+                Serial.println("Failed to reconnect WiFi after 5 attempts.");
+                Serial.println("Rebooting in 5 seconds...");
+                delay(5000);
+                ESP.restart();
+            }
+        } else {
+            // Reset counter when connected
+            if (consecutiveWifiFailures > 0) {
+                Serial.println("WiFi reconnected successfully!");
+                logError("WiFi reconnected successfully");
+            }
+            consecutiveWifiFailures = 0;
         }
-    } else {
-        // Reset counter when connected
-        if (consecutiveWifiFailures > 0) {
-            Serial.println("WiFi reconnected successfully!");
+    }
+    
+    // Only poll if WiFi is connected (skip if reconnecting)
+    // Each poll checks for commands AND sends status update
+    if (WiFi.status() == WL_CONNECTED) {
+        if (now - lastPoll >= POLL_INTERVAL) {
+            lastPoll = now;
+            pollForCommands();  // This also sends status after checking commands
+            
+            // Add small delay after HTTP requests to let connections fully close
+            delay(100);
         }
-        consecutiveWifiFailures = 0;
     }
     
-    // Poll for commands
-    if (now - lastPoll >= POLL_INTERVAL) {
-        lastPoll = now;
-        pollForCommands();
-    }
-    
-    // Report status
-    if (now - lastStatusReport >= STATUS_REPORT_INTERVAL) {
-        lastStatusReport = now;
-        reportStatus();
-    }
-    
-    // Print countdown every 10 seconds
-    if (now - lastCountdownPrint >= 10000) {
+    // Print countdown every 10 seconds (only show if WiFi connected)
+    if (WiFi.status() == WL_CONNECTED && now - lastCountdownPrint >= 10000) {
         lastCountdownPrint = now;
-        unsigned long timeUntilReport = STATUS_REPORT_INTERVAL - (now - lastStatusReport);
-        int secondsLeft = timeUntilReport / 1000;
-        Serial.print("Next status report in: ");
-        Serial.print(secondsLeft);
-        Serial.println(" seconds");
+        printCountdown();
     }
     
     // Check if scheduled action needs to be executed
@@ -440,11 +431,28 @@ void loop() {
     delay(1);
 }
 
+void printCountdown() {
+    unsigned long now = millis();
+    unsigned long timeUntilPoll = POLL_INTERVAL - (now - lastPoll);
+    int pollSecondsLeft = timeUntilPoll / 1000;
+    
+    Serial.print("[POLL] Next poll in ");
+    Serial.print(pollSecondsLeft);
+    Serial.println("s (will check for commands and send status)");
+}
+
 void connectWiFi() {
     Serial.print("Connecting to WiFi: ");
     Serial.println(WIFI_SSID);
     
+    // Configure WiFi for stability
     WiFi.mode(WIFI_STA);
+    WiFi.setAutoReconnect(false);  // Disable auto-reconnect, we handle it manually
+    WiFi.persistent(false);        // Don't save WiFi config to flash (reduces wear)
+    
+    // Set power management to maximum performance (no sleep)
+    WiFi.setSleep(false);
+    
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
     
     int attempts = 0;
@@ -458,6 +466,9 @@ void connectWiFi() {
         Serial.println("\nWiFi connected!");
         Serial.print("IP address: ");
         Serial.println(WiFi.localIP());
+        Serial.print("Signal strength (RSSI): ");
+        Serial.print(WiFi.RSSI());
+        Serial.println(" dBm");
     } else {
         Serial.println("\nWiFi connection failed!");
     }
@@ -466,10 +477,13 @@ void connectWiFi() {
 void pollForCommands() {
     if (WiFi.status() != WL_CONNECTED) return;
     
+    // Create fresh HTTPClient for each request to avoid connection state issues
+    HTTPClient http;
+    
     String url = String(API_HOST) + COMMAND_ENDPOINT;
     
     http.begin(url);
-    http.setTimeout(5000);
+    http.setTimeout(10000);  // 10 seconds timeout - watchdog will catch if this hangs
     http.addHeader("X-API-Key", API_KEY);
     
     int httpCode = http.GET();
@@ -492,9 +506,7 @@ void pollForCommands() {
                 bool newState = (strcmp(action, "on") == 0);
                 setRelay(newState);
                 saveRelayState();
-                
-                // Send immediate heartbeat after relay change
-                reportStatus();
+                // Status will be sent at end of poll
                 
             } else if (strcmp(type, "schedule") == 0) {
                 Serial.println("Schedule command received");
@@ -510,18 +522,14 @@ void pollForCommands() {
                 
                 saveSchedule();
                 printSchedule();
-                
-                // Send immediate heartbeat after schedule change
-                reportStatus();
+                // Status will be sent at end of poll
                 
             } else if (strcmp(type, "clear_schedule") == 0) {
                 Serial.println("Clear schedule command received");
                 currentSchedule.active = false;
                 currentSchedule.executed = false;  // Clear executed flag when manually cancelled
                 saveSchedule();
-                
-                // Send immediate heartbeat after clearing schedule
-                reportStatus();
+                // Status will be sent at end of poll
                 
             } else if (strcmp(type, "clear_errors") == 0) {
                 Serial.println("Clear errors command received");
@@ -532,23 +540,29 @@ void pollForCommands() {
         // Negative HTTP codes indicate connection issues
         consecutiveHttpErrors++;
         
-        // Log the error
-        char errorMsg[ERROR_MESSAGE_LENGTH];
-        snprintf(errorMsg, ERROR_MESSAGE_LENGTH, "Poll HTTP error: %d", httpCode);
-        logError(errorMsg);
-        
-        Serial.print("HTTP error: ");
+        Serial.print("Poll HTTP error: ");
         Serial.println(httpCode);
+        
+        // Only log error on first occurrence to reduce EEPROM wear
+        if (consecutiveHttpErrors == 1) {
+            char errorMsg[ERROR_MESSAGE_LENGTH];
+            snprintf(errorMsg, ERROR_MESSAGE_LENGTH, "Poll HTTP error: %d", httpCode);
+            logError(errorMsg);
+        }
         
         // If we get multiple HTTP errors, force WiFi reconnection
         if (consecutiveHttpErrors >= 3) {
             // Turn LED red during HTTP error recovery
             setLEDRed();
             
-            logError("Multiple HTTP errors - reconnecting WiFi");
-            Serial.println("Multiple HTTP errors detected. Reconnecting WiFi...");
-            WiFi.disconnect();
-            delay(1000);
+            logError("Multiple HTTP errors (3+) - reconnecting WiFi");
+            Serial.println("Multiple HTTP errors detected (3+). Reconnecting WiFi...");
+            
+            // Properly shutdown WiFi before reconnection
+            WiFi.disconnect(true, true);  // Disconnect and erase credentials from memory
+            WiFi.mode(WIFI_OFF);          // Turn off WiFi radio completely
+            delay(2000);                  // Wait for radio to fully shutdown
+            
             connectWiFi();
             
             // If WiFi reconnection failed, reboot
@@ -570,19 +584,18 @@ void pollForCommands() {
     }
     
     http.end();
+    
+    // Always send status update after checking for commands
+    // This keeps the UI in sync every poll cycle
+    Serial.println("Sending status update to UI...");
+    reportStatus();
 }
 
 void reportStatus() {
     if (WiFi.status() != WL_CONNECTED) return;
     
-    // Throttle rapid successive calls to prevent HTTP errors
-    // Allow immediate reports max once per 2 seconds
-    unsigned long now = millis();
-    if (now - lastImmediateReport < 2000 && lastImmediateReport != 0) {
-        Serial.println("Throttling: Skipping report (too soon after last one)");
-        return;
-    }
-    lastImmediateReport = now;
+    // Create fresh HTTPClient for each request to avoid connection state issues
+    HTTPClient http;
     
     String url = String(API_HOST) + STATUS_ENDPOINT;
     
@@ -623,14 +636,17 @@ void reportStatus() {
     serializeJson(doc, jsonString);
     
     http.begin(url);
-    http.setTimeout(10000);  // Increase timeout to 10 seconds
+    http.setTimeout(10000);  // 10 seconds timeout - watchdog will catch if this hangs
     http.addHeader("Content-Type", "application/json");
     http.addHeader("X-API-Key", API_KEY);
     
     int httpCode = http.POST(jsonString);
     
     if (httpCode == HTTP_CODE_OK) {
-        Serial.println("Status reported successfully");
+        Serial.println("[OK] Status update sent successfully");
+        
+        // Force countdown to print on next loop iteration
+        lastCountdownPrint = millis() - 10000;
         
         // Reset error counter on success
         if (consecutiveHttpErrors > 0) {
@@ -641,20 +657,26 @@ void reportStatus() {
         Serial.println(httpCode);
         consecutiveHttpErrors++;
         
-        // Log the error
-        char errorMsg[ERROR_MESSAGE_LENGTH];
-        snprintf(errorMsg, ERROR_MESSAGE_LENGTH, "Status report HTTP error: %d", httpCode);
-        logError(errorMsg);
+        // Only log error on first occurrence to reduce EEPROM wear
+        if (consecutiveHttpErrors == 1) {
+            char errorMsg[ERROR_MESSAGE_LENGTH];
+            snprintf(errorMsg, ERROR_MESSAGE_LENGTH, "Status report HTTP error: %d", httpCode);
+            logError(errorMsg);
+        }
         
         // If we get multiple HTTP errors, force WiFi reconnection
         if (consecutiveHttpErrors >= 3) {
             // Turn LED red during HTTP error recovery
             setLEDRed();
             
-            logError("Multiple status HTTP errors - reconnecting WiFi");
-            Serial.println("Multiple HTTP errors detected. Reconnecting WiFi...");
-            WiFi.disconnect();
-            delay(1000);
+            logError("Multiple status HTTP errors (3+) - reconnecting WiFi");
+            Serial.println("Multiple HTTP errors detected (3+). Reconnecting WiFi...");
+            
+            // Properly shutdown WiFi before reconnection
+            WiFi.disconnect(true, true);  // Disconnect and erase credentials from memory
+            WiFi.mode(WIFI_OFF);          // Turn off WiFi radio completely
+            delay(2000);                  // Wait for radio to fully shutdown
+            
             connectWiFi();
             
             // If WiFi reconnection failed, reboot

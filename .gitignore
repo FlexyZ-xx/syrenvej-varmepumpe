@@ -7,5 +7,5 @@ node_modules/
 deployment_info.txt
 arduino_config.txt
 backups/
-
+notes
 .vercel
